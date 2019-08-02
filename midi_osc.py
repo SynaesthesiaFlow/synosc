@@ -1,5 +1,7 @@
 #!/usr/bin/env python
-
+"""
+dont need server, just need liblo.send
+"""
 from __future__ import print_function
 
 # this example requires the pyliblo library from http://das.nasophon.de/pyliblo

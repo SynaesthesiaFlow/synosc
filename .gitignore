@@ -1,3 +1,7 @@
 liblo
 pyliblo-0.10.0
 MidiOSC
+data
+python-midi
+.DS_Store
+magenta
