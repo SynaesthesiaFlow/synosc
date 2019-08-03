@@ -1,7 +1,7 @@
 from invoke import task
-import core
+import magenta_helper
 
 @task
 def test(c):
-    core.test()
+    magenta_helper.test()
     sleep(5)

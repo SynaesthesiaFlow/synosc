@@ -5,3 +5,4 @@ data
 python-midi
 .DS_Store
 magenta
+__pycache__

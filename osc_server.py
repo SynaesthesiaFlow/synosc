@@ -9,6 +9,19 @@ import math
 from pythonosc import dispatcher
 from pythonosc import osc_server
 
+import magenta_helper
+
+"""
+first get OSC <-> midi
+
+- does this server only send one way? 
+  if so, implement that way first with client
+- make bidirectional osc->osc pipes
+
+
+
+
+"""
 def print_volume_handler(unused_addr, args, volume):
   print("[{0}] ~ {1}".format(args[0], volume))
 
