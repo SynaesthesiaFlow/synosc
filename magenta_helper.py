@@ -1,21 +1,52 @@
 import subprocess
 import pretty_midi
-
+import liblo, sys
+from pythonosc import osc_bundle_builder
+from pythonosc import osc_message_builder
 
 class ProtocolConverter:
     """
     convert to/from OSC/MIDI
-    learning curve:
-        - osc is tied to a network and URL encoding which is an intimidating transport layer
-    """
-    def midi_to_osc():
+    https://github.com/jstutters/MidiOSC
 
-        pass
+    avoid futzing with hardcoding protocol details whenever possible :fingers-crossed:
+    """
 
     def osc_to_midi():
+        # this looks like the easier one
         pass
 
-    
+    def midi_to_osc():
+        pass
+  
+
+class SynOSCUtil:
+    """
+    learn OSC
+        https://python-osc.readthedocs.io/en/latest/dispatcher.html
+        https://www.linuxjournal.com/content/introduction-osc
+    """
+    def build_bundle():
+        bundle = osc_bundle_builder.OscBundleBuilder(
+        osc_bundle_builder.IMMEDIATELY)
+        msg = osc_message_builder.OscMessageBuilder(address="/SYNC")
+        msg.add_arg(4.0)
+        # Add 4 messages in the bundle, each with more arguments.
+        bundle.add_content(msg.build())
+        msg.add_arg(2)
+        bundle.add_content(msg.build())
+        msg.add_arg("value")
+        bundle.add_content(msg.build())
+        msg.add_arg(b"\x01\x02\x03")
+        bundle.add_content(msg.build())
+
+        sub_bundle = bundle.build()
+        # Now add the same bundle inside itself.
+        bundle.add_content(sub_bundle)
+        # The bundle has 5 elements in total now.
+
+        bundle = bundle.build()
+        # You can now send it via a client as described in other examples.
 
 
 class SynMidiUtil:
@@ -101,9 +132,9 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 """
-Melody RNN: a first pass
-    - Each SequenceExample will contain a sequence of inputs and a sequence of labels that represent a melody
+- Each SequenceExample will contain a sequence of inputs and a sequence of labels that represent a melody
         https://github.com/tensorflow/magenta/blob/master/magenta/pipelines/note_sequence_pipelines.py
 
 

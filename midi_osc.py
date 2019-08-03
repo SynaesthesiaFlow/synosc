@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """
-dont need server, just need liblo.send
+dont need server for midi -> osc?
+where is the osc->midi transform? is it implicit in the server.add_method?
 """
 from __future__ import print_function
 
@@ -18,6 +19,7 @@ except liblo.AddressError as err:
 device_name = "IAC Driver Bus 1".replace(' ', '_')
 osc_address = "/midi/" + device_name + "/0"
 
+# MIDI in -> OSC out
 # send a note on with note number 60 and velocity 100
 liblo.send(midiosc, osc_address, "note_on", 60, 100)
 

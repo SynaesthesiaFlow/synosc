@@ -2,13 +2,8 @@
 
 Open Questions
     - what are the computational demands of an RNN vs a more advanced model like Coconet
+    - what's this? https://www.ableton.com/en/packs/connection-kit/
 
-
-TODO
-    -  research to get your bearings
-    -  create OSC and MIDI generators
-    -  convert between the two
-      -> use python_osc.Dispatcher to generate MIDI
 
 Milestone
     - get noteSequence to Dispatch OSC message
