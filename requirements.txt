@@ -1,4 +1,5 @@
-MIDIUtil
+sounddevice==0.3.13
+pretty_midi
 magenta
 black
-pretty_midi
+

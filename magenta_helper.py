@@ -1,12 +1,19 @@
 """
 where are our infrasound installations?
+TouchDesigner substitute? https://osculator.net/
 """
 import subprocess
 import pretty_midi
 import liblo, sys
 import random
+import sys
+import time
+import random
 from pythonosc import osc_bundle_builder
 from pythonosc import osc_message_builder
+import mido
+from mido import Message, sockets
+from mido.ports import MultiPort
 
 from pythonosc import udp_client
 
@@ -14,16 +21,33 @@ DEFAULT_ADDRESS = "127.0.0.1"
 DEFAULT_PORT = 5005
 
 def main():
-    ProtocolConverter.osc_to_midi()
+    # ProtocolConverter.osc_to_midi()
+    # SynMidiUtil.serve_ports()
+    SynOSCUtil.generate_messages()
+
+def test_pipe():
+    """
+    1) load midi
+    2) put in osc
+    3) send from client to server
+    4) synthsize midi on server
+    5) send midi back to magenta to resynthesize (recursive synthesis, lol)
+    """
 
 
 class ProtocolConverter:
     """
+    new aim: put midi inside OSC:
+
+
     convert to/from OSC/MIDI
     https://github.com/jstutters/MidiOSC
 
-    avoid futzing with hardcoding protocol details whenever possible :fingers-crossed:
+
     """
+
+    def send_to_midi_osc():
+        SynOSCUtil.generate_messages("localhost", 7001)
 
     def osc_to_midi():
         """
@@ -32,7 +56,7 @@ class ProtocolConverter:
             port: 7001
         """
         # generate OSC 
-        SynOSCUtil.generate_messages("localhost", 7001)
+        
         # SynOSCUtil.generate_messages()
         # send through midi_osc.py
             #should be done automagically if on right address/port?
@@ -57,9 +81,13 @@ class SynOSCUtil:
 
     def generate_messages(ip=DEFAULT_ADDRESS, port=DEFAULT_PORT):
         client = SynOSCUtil.get_udp_client(ip, port)
-        client.send_message("/some/address", 123) # Send float message
-        client.send_message("/some/address", [1, 2., "hello"])
+        # client.send_message("/some/address", 123) # Send float message
+        client.send_message("/volume", 1)
         client.send_message("/filter", random.random())
+        # [4d54, 6864, 0000, 0006, 0001, 000e, 0180, 4d54]
+        midi_fname = "/Users/davisdulin/src/synaesthesia/synosc/data/primer.mid"
+        client.send_message("/midi", [midi_fname])
+
     """
     GOALs:
         - connect python-osc to midi_osc
@@ -117,8 +145,56 @@ class SynMidiUtil:
     more pretty_midi examples: https://github.com/craffel/pretty-midi/tree/master/examples
     """
 
-    def get_midi():
-        midi_data = pretty_midi.PrettyMIDI('example.mid')
+    def serve_ports():
+        out = MultiPort([mido.open_output(name) for name in ['SH-201' 'SD-20 Part A']])
+
+        (host, port) = sockets.parse_address(":8080")
+        with sockets.PortServer(host, port) as server:
+            for message in server:
+                print('Received {}'.format(message))
+                out.send(message)
+
+    # def send_midi_over_network(address, port):
+    #     address = f"{address}:{port}"
+
+    #     host, port = mido.sockets.parse_address(address)
+
+    #     notes = [60, 67, 72, 79, 84, 79, 72, 67, 60]
+    #     on = mido.Message('note_on', velocity=100)
+    #     off = mido.Message('note_off', velocity=100)
+    #     base = random.randrange(12)
+
+    #     print('Connecting to {}'.format(address))
+
+    #     with mido.sockets.connect(host, port) as server_port:
+    #         try:
+    #             message = mido.Message('program_change')
+    #             for note in notes:
+    #                 on.note = off.note = base + note
+
+    #                 server_port.send(on)
+    #                 time.sleep(0.05)
+
+    #                 server_port.send(off)
+    #                 time.sleep(0.1)
+    #         finally:
+    #             server_port.reset()
+
+    def _print_ports(heading, port_names):
+        print(heading)
+        for name in port_names:
+            print("    '{}'".format(name))
+        print()
+
+    def print_ports():
+        print()
+        SynMidiUtil._print_ports('Input Ports:', mido.get_input_names())
+        SynMidiUtil._print_ports('Output Ports:', mido.get_output_names())
+
+
+
+    def get_midi(fname='example.mid'):
+        midi_data = pretty_midi.PrettyMIDI(fname)
         return midi_data
 
     def create_midi():

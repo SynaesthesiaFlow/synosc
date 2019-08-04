@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """
-dont need server for midi -> osc?
+this program shows the use of a /midi/ symbolic path with osc
+use python_osc instead of liblo
 """
 from __future__ import print_function
 
