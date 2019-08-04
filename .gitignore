@@ -1,3 +1,5 @@
+.idea/
+python-osc/
 liblo
 pyliblo-0.10.0
 MidiOSC

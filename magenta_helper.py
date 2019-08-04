@@ -1,8 +1,21 @@
+"""
+where are our infrasound installations?
+"""
 import subprocess
 import pretty_midi
 import liblo, sys
+import random
 from pythonosc import osc_bundle_builder
 from pythonosc import osc_message_builder
+
+from pythonosc import udp_client
+
+DEFAULT_ADDRESS = "127.0.0.1"
+DEFAULT_PORT = 5005
+
+def main():
+    ProtocolConverter.osc_to_midi()
+
 
 class ProtocolConverter:
     """
@@ -13,8 +26,18 @@ class ProtocolConverter:
     """
 
     def osc_to_midi():
-        # this looks like the easier one
-        pass
+        """
+        liblo server:
+            address: "localhost"
+            port: 7001
+        """
+        # generate OSC 
+        SynOSCUtil.generate_messages("localhost", 7001)
+        # SynOSCUtil.generate_messages()
+        # send through midi_osc.py
+            #should be done automagically if on right address/port?
+
+
 
     def midi_to_osc():
         pass
@@ -22,10 +45,48 @@ class ProtocolConverter:
 
 class SynOSCUtil:
     """
-    learn OSC
+    pyliblo: python wrapper for lightweight osc liblo library
+        https://github.com/dsacre/pyliblo/tree/master/examples
+    """
+    def get_udp_client(ip=DEFAULT_ADDRESS, port=DEFAULT_PORT):
+        """
+        client allows you to connect and send messages to an OSC server
+        """
+        client = udp_client.SimpleUDPClient(ip, port)
+        return client
+
+    def generate_messages(ip=DEFAULT_ADDRESS, port=DEFAULT_PORT):
+        client = SynOSCUtil.get_udp_client(ip, port)
+        client.send_message("/some/address", 123) # Send float message
+        client.send_message("/some/address", [1, 2., "hello"])
+        client.send_message("/filter", random.random())
+    """
+    GOALs:
+        - connect python-osc to midi_osc
+        - bidirectional pipe for to/from magenta
+
+
+
+
+    OSC spec: http://opensoundcontrol.org/spec-1_0
+
         https://python-osc.readthedocs.io/en/latest/dispatcher.html
         https://www.linuxjournal.com/content/introduction-osc
+
+    OSC Notes
+
+    - OSC Address Space: list of all the messages a server understands
+
+    - OSC Schema: OSC Address Space plus the semantics of all the messages
+        - Expected argument type(s) for each message
+        - Units and allowable ranges for each parameter
+        - The effect of each message (with respect to some model of the behavior of the OSC server as a whole)
+        - If and how the effects of multiple messages interact
+
+
     """
+
+
     def build_bundle():
         bundle = osc_bundle_builder.OscBundleBuilder(
         osc_bundle_builder.IMMEDIATELY)
@@ -126,8 +187,7 @@ def test():
     SynGenModels.midi_prior_generates_midi_melody(primer_midi)
 
 
-def main():
-    test()
+
 
 
 if __name__ == "__main__":
