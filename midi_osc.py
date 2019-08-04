@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """
 dont need server for midi -> osc?
-where is the osc->midi transform? is it implicit in the server.add_method?
 """
 from __future__ import print_function
 
