@@ -10,7 +10,7 @@ from pythonosc import dispatcher
 from pythonosc import osc_server
 
 """
-first get OSC <-> midi
+first get OSC <-> OSC btwn pythonosc
 
 - does this server only send one way? 
   if so, implement that way first with client
