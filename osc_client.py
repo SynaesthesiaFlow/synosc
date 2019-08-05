@@ -10,7 +10,7 @@ import random
 class OscClient(OscObject):
     """
     Class for OSC Clients
-    must override: construct_dispatchers()
+    must override: generate_messages()
     https://python-osc.readthedocs.io/en/latest/
     """
 
@@ -64,7 +64,7 @@ class ExampleClient(OscClient):
         client.send_message("/volume", 1)
         client.send_message("/filter", random.random())
         # TODO send midi file instead of file name
-        with open("data/primer.mid", "rb") as f:
+        with open(midi_fname, "rb") as f:
             midi_data_str = f.readlines()
         client.send_message("/midi/0", [midi_data_str])
 

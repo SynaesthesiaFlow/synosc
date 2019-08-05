@@ -5,10 +5,9 @@
 
 # Other, less important Questions
     - what are the computational demands of a vanilla RNN vs something like Coconet
-    - what's this? https://www.ableton.com/en/packs/connection-kit/
-    - what about putting MIDI inside OSC?
-        
-
+    - is any of this tooling useful?
+        - TouchDesigner substitute? https://osculator.net/
+        - https://www.ableton.com/en/packs/connection-kit/
 
 # Notes
     - magenta midi interface: https://github.com/tensorflow/magenta/tree/master/magenta/interfaces/midi
@@ -31,7 +30,3 @@
     - coconet
         - https://github.com/czhuang/JSB-Chorales-dataset
         - pre-trained checkpoints: http://download.magenta.tensorflow.org/models/coconet/checkpoint.zip
-
-Versioning restrictions
-    MidiOSC : OSX 10.5-10.11 and Ubuntu 9.10
-

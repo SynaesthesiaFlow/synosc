@@ -1,140 +1,27 @@
 """
 where are our infrasound installations?
-TouchDesigner substitute? https://osculator.net/
 """
 import subprocess
 import pretty_midi
-import liblo, sys
-import random
-import sys
-import time
-import random
-from pythonosc import osc_bundle_builder
-from pythonosc import osc_message_builder
 import mido
-from mido import Message, sockets
+from mido import sockets
 from mido.ports import MultiPort
 
-from pythonosc import udp_client
 
-DEFAULT_ADDRESS = "127.0.0.1"
-DEFAULT_PORT = 5005
+class SynGenModels:
 
-
-def main():
-    # ProtocolConverter.osc_to_midi()
-    # SynMidiUtil.serve_ports()
-    SynOSCUtil.generate_messages()
-
-
-def test_pipe():
-    """
-    1) load midi
-    2) put in osc
-    3) send from client to server
-    4) synthsize midi on server
-    5) send midi back to magenta to resynthesize (recursive synthesis, lol)
-    """
-
-
-class ProtocolConverter:
-    """
-    new aim: put midi inside OSC:
-
-
-    convert to/from OSC/MIDI
-    https://github.com/jstutters/MidiOSC
-
-
-    """
-
-    def send_to_midi_osc():
-        SynOSCUtil.generate_messages("localhost", 7001)
-
-    def osc_to_midi():
+    def midi_prior_generates_midi_melody(self, primer_midi):
         """
-        liblo server:
-            address: "localhost"
-            port: 7001
+        use melody_rnn with attention to generate a midi file from an input midi
+        primer_midi: (path) to midi file
+        primer_melody: (list) of pitches, replaces primer_midi
+                       -2 = no event, -1 = note-off event, values 0 through 127 = note-on event for that MIDI pitch
         """
-        # generate OSC
-
-        # SynOSCUtil.generate_messages()
-        # send through midi_osc.py
-        # should be done automagically if on right address/port?
-
-    def midi_to_osc():
-        pass
-
-
-class SynOSCUtil:
-    """
-    pyliblo: python wrapper for lightweight osc liblo library
-        https://github.com/dsacre/pyliblo/tree/master/examples
-    """
-
-    def get_udp_client(ip=DEFAULT_ADDRESS, port=DEFAULT_PORT):
-        """
-        client allows you to connect and send messages to an OSC server
-        """
-        client = udp_client.SimpleUDPClient(ip, port)
-        return client
-
-    def generate_messages(ip=DEFAULT_ADDRESS, port=DEFAULT_PORT):
-        client = SynOSCUtil.get_udp_client(ip, port)
-        # client.send_message("/some/address", 123) # Send float message
-        client.send_message("/volume", 1)
-        client.send_message("/filter", random.random())
-        # [4d54, 6864, 0000, 0006, 0001, 000e, 0180, 4d54]
-        midi_fname = "/Users/davisdulin/src/synaesthesia/synosc/data/primer.mid"
-        client.send_message("/midi", [midi_fname])
-
-    """
-    GOALs:
-        - connect python-osc to midi_osc
-        - bidirectional pipe for to/from magenta
-
-
-
-
-    OSC spec: http://opensoundcontrol.org/spec-1_0
-
-        https://python-osc.readthedocs.io/en/latest/dispatcher.html
-        https://www.linuxjournal.com/content/introduction-osc
-
-    OSC Notes
-
-    - OSC Address Space: list of all the messages a server understands
-
-    - OSC Schema: OSC Address Space plus the semantics of all the messages
-        - Expected argument type(s) for each message
-        - Units and allowable ranges for each parameter
-        - The effect of each message (with respect to some model of the behavior of the OSC server as a whole)
-        - If and how the effects of multiple messages interact
-
-
-    """
-
-    def build_bundle():
-        bundle = osc_bundle_builder.OscBundleBuilder(osc_bundle_builder.IMMEDIATELY)
-        msg = osc_message_builder.OscMessageBuilder(address="/SYNC")
-        msg.add_arg(4.0)
-        # Add 4 messages in the bundle, each with more arguments.
-        bundle.add_content(msg.build())
-        msg.add_arg(2)
-        bundle.add_content(msg.build())
-        msg.add_arg("value")
-        bundle.add_content(msg.build())
-        msg.add_arg(b"\x01\x02\x03")
-        bundle.add_content(msg.build())
-
-        sub_bundle = bundle.build()
-        # Now add the same bundle inside itself.
-        bundle.add_content(sub_bundle)
-        # The bundle has 5 elements in total now.
-
-        bundle = bundle.build()
-        # You can now send it via a client as described in other examples.
+        config = "attention_rnn"
+        bundle_path = "/Users/davisdulin/src/synaesthesia/synosc/data/attention_rnn.mag"
+        output_dir = "/tmp/melody_rnn/generated"
+        cmd = f"./generate-rnn-midi.sh {config} {bundle_path} {output_dir} {primer_midi}"
+        subprocess.run(cmd, shell=True)
 
 
 class SynMidiUtil:
@@ -144,7 +31,7 @@ class SynMidiUtil:
     more pretty_midi examples: https://github.com/craffel/pretty-midi/tree/master/examples
     """
 
-    def serve_ports():
+    def serve_ports(self):
         out = MultiPort([mido.open_output(name) for name in ["SH-201" "SD-20 Part A"]])
 
         (host, port) = sockets.parse_address(":8080")
@@ -153,48 +40,22 @@ class SynMidiUtil:
                 print("Received {}".format(message))
                 out.send(message)
 
-    # def send_midi_over_network(address, port):
-    #     address = f"{address}:{port}"
-
-    #     host, port = mido.sockets.parse_address(address)
-
-    #     notes = [60, 67, 72, 79, 84, 79, 72, 67, 60]
-    #     on = mido.Message('note_on', velocity=100)
-    #     off = mido.Message('note_off', velocity=100)
-    #     base = random.randrange(12)
-
-    #     print('Connecting to {}'.format(address))
-
-    #     with mido.sockets.connect(host, port) as server_port:
-    #         try:
-    #             message = mido.Message('program_change')
-    #             for note in notes:
-    #                 on.note = off.note = base + note
-
-    #                 server_port.send(on)
-    #                 time.sleep(0.05)
-
-    #                 server_port.send(off)
-    #                 time.sleep(0.1)
-    #         finally:
-    #             server_port.reset()
-
-    def _print_ports(heading, port_names):
+    def _print_ports(self, heading, port_names):
         print(heading)
         for name in port_names:
             print("    '{}'".format(name))
         print()
 
-    def print_ports():
+    def print_ports(self):
         print()
         SynMidiUtil._print_ports("Input Ports:", mido.get_input_names())
         SynMidiUtil._print_ports("Output Ports:", mido.get_output_names())
 
-    def get_midi(fname="example.mid"):
+    def get_midi(self, fname="example.mid"):
         midi_data = pretty_midi.PrettyMIDI(fname)
         return midi_data
 
-    def create_midi():
+    def create_midi(self):
         cello_c_chord = pretty_midi.PrettyMIDI()
         cello_program = pretty_midi.instrument_name_to_program("Cello")
         cello = pretty_midi.Instrument(program=cello_program)
@@ -211,16 +72,16 @@ class SynMidiUtil:
         # Write out the MIDI data
         cello_c_chord.write("cello-C-chord.mid")
 
-    def estimate_tempo(midi_data):
+    def estimate_tempo(self, midi_data):
         # Print an empirical estimate of its global tempo
         return midi_data.estimate_tempo()
 
-    def get_musical_key(midi_data):
+    def get_musical_key(self, midi_data):
         # Compute the relative amount of each semitone across the entire song, a proxy for key
         total_velocity = sum(sum(midi_data.get_chroma()))
         return [sum(semitone) / total_velocity for semitone in midi_data.get_chroma()]
 
-    def shift_instrument_notes(midi_data, n):
+    def shift_instrument_notes(self, midi_data, n):
         # Shift all notes up by n semitones
         for instrument in midi_data.instruments:
             # Don't want to shift drum notes
@@ -228,35 +89,20 @@ class SynMidiUtil:
                 for note in instrument.notes:
                     note.pitch += n
 
-    def synthesize_midi(midi_data):
+    def synthesize_midi(self, midi_data):
         # Synthesize the resulting MIDI data using sine waves
         audio_data = midi_data.synthesize()
         return audio_data
-
-
-class SynGenModels:
-    def midi_prior_generates_midi_melody(primer_midi):
-        """
-        use melody_rnn with attention to generate a midi file from an input midi
-        primer_midi: (path) to midi file
-        primer_melody: (list) of pitches, replaces primer_midi
-                       -2 = no event, -1 = note-off event, values 0 through 127 = note-on event for that MIDI pitch
-        """
-        config = "attention_rnn"
-        bundle_path = "/Users/davisdulin/src/synaesthesia/synosc/data/attention_rnn.mag"
-        output_dir = "/tmp/melody_rnn/generated"
-
-        # subprocess.call(["./generate-rnn-midi.sh", config, bundle_path, output_dir], shell=True)
-        cmd = (
-            f"./generate-rnn-midi.sh {config} {bundle_path} {output_dir} {primer_midi}"
-        )
-        subprocess.run(cmd, shell=True)
 
 
 def test():
     primer_midi = "/Users/davisdulin/src/synaesthesia/synosc/data/primer.mid"
     # primer_melody = f"{[60]}"
     SynGenModels.midi_prior_generates_midi_melody(primer_midi)
+
+
+def main():
+    pass
 
 
 if __name__ == "__main__":
