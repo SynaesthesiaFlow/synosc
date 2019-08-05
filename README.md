@@ -1,14 +1,13 @@
 
 
 # Open Questions
-    - what are the computational demands of an RNN vs a more advanced model like Coconet
+    - what are our infrasound installations?
+
+# Other, less important Questions
+    - what are the computational demands of a vanilla RNN vs something like Coconet
     - what's this? https://www.ableton.com/en/packs/connection-kit/
     - what about putting MIDI inside OSC?
-        http://opensoundcontrol.org/wrapping-other-protocols-inside-osc
-
-
-# Milestone
-    - get noteSequence to Dispatch OSC message
+        
 
 
 # Notes

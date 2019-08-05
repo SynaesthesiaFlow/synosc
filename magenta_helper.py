@@ -20,10 +20,12 @@ from pythonosc import udp_client
 DEFAULT_ADDRESS = "127.0.0.1"
 DEFAULT_PORT = 5005
 
+
 def main():
     # ProtocolConverter.osc_to_midi()
     # SynMidiUtil.serve_ports()
     SynOSCUtil.generate_messages()
+
 
 def test_pipe():
     """
@@ -55,23 +57,22 @@ class ProtocolConverter:
             address: "localhost"
             port: 7001
         """
-        # generate OSC 
-        
+        # generate OSC
+
         # SynOSCUtil.generate_messages()
         # send through midi_osc.py
-            #should be done automagically if on right address/port?
-
-
+        # should be done automagically if on right address/port?
 
     def midi_to_osc():
         pass
-  
+
 
 class SynOSCUtil:
     """
     pyliblo: python wrapper for lightweight osc liblo library
         https://github.com/dsacre/pyliblo/tree/master/examples
     """
+
     def get_udp_client(ip=DEFAULT_ADDRESS, port=DEFAULT_PORT):
         """
         client allows you to connect and send messages to an OSC server
@@ -114,10 +115,8 @@ class SynOSCUtil:
 
     """
 
-
     def build_bundle():
-        bundle = osc_bundle_builder.OscBundleBuilder(
-        osc_bundle_builder.IMMEDIATELY)
+        bundle = osc_bundle_builder.OscBundleBuilder(osc_bundle_builder.IMMEDIATELY)
         msg = osc_message_builder.OscMessageBuilder(address="/SYNC")
         msg.add_arg(4.0)
         # Add 4 messages in the bundle, each with more arguments.
@@ -146,12 +145,12 @@ class SynMidiUtil:
     """
 
     def serve_ports():
-        out = MultiPort([mido.open_output(name) for name in ['SH-201' 'SD-20 Part A']])
+        out = MultiPort([mido.open_output(name) for name in ["SH-201" "SD-20 Part A"]])
 
         (host, port) = sockets.parse_address(":8080")
         with sockets.PortServer(host, port) as server:
             for message in server:
-                print('Received {}'.format(message))
+                print("Received {}".format(message))
                 out.send(message)
 
     # def send_midi_over_network(address, port):
@@ -188,32 +187,29 @@ class SynMidiUtil:
 
     def print_ports():
         print()
-        SynMidiUtil._print_ports('Input Ports:', mido.get_input_names())
-        SynMidiUtil._print_ports('Output Ports:', mido.get_output_names())
+        SynMidiUtil._print_ports("Input Ports:", mido.get_input_names())
+        SynMidiUtil._print_ports("Output Ports:", mido.get_output_names())
 
-
-
-    def get_midi(fname='example.mid'):
+    def get_midi(fname="example.mid"):
         midi_data = pretty_midi.PrettyMIDI(fname)
         return midi_data
 
     def create_midi():
         cello_c_chord = pretty_midi.PrettyMIDI()
-        cello_program = pretty_midi.instrument_name_to_program('Cello')
+        cello_program = pretty_midi.instrument_name_to_program("Cello")
         cello = pretty_midi.Instrument(program=cello_program)
         # Iterate over note names, which will be converted to note number later
-        for note_name in ['C5', 'E5', 'G5']:
+        for note_name in ["C5", "E5", "G5"]:
             # Retrieve the MIDI note number for this note name
             note_number = pretty_midi.note_name_to_number(note_name)
             # Create a Note instance, starting at 0s and ending at .5s
-            note = pretty_midi.Note(
-                velocity=100, pitch=note_number, start=0, end=.5)
+            note = pretty_midi.Note(velocity=100, pitch=note_number, start=0, end=0.5)
             # Add it to our cello instrument
             cello.notes.append(note)
         # Add the cello instrument to the PrettyMIDI object
         cello_c_chord.instruments.append(cello)
         # Write out the MIDI data
-        cello_c_chord.write('cello-C-chord.mid')
+        cello_c_chord.write("cello-C-chord.mid")
 
     def estimate_tempo(midi_data):
         # Print an empirical estimate of its global tempo
@@ -222,7 +218,7 @@ class SynMidiUtil:
     def get_musical_key(midi_data):
         # Compute the relative amount of each semitone across the entire song, a proxy for key
         total_velocity = sum(sum(midi_data.get_chroma()))
-        return [sum(semitone)/total_velocity for semitone in midi_data.get_chroma()]
+        return [sum(semitone) / total_velocity for semitone in midi_data.get_chroma()]
 
     def shift_instrument_notes(midi_data, n):
         # Shift all notes up by n semitones
@@ -239,7 +235,6 @@ class SynMidiUtil:
 
 
 class SynGenModels:
-
     def midi_prior_generates_midi_melody(primer_midi):
         """
         use melody_rnn with attention to generate a midi file from an input midi
@@ -250,10 +245,11 @@ class SynGenModels:
         config = "attention_rnn"
         bundle_path = "/Users/davisdulin/src/synaesthesia/synosc/data/attention_rnn.mag"
         output_dir = "/tmp/melody_rnn/generated"
-        
-        
+
         # subprocess.call(["./generate-rnn-midi.sh", config, bundle_path, output_dir], shell=True)
-        cmd = f"./generate-rnn-midi.sh {config} {bundle_path} {output_dir} {primer_midi}"
+        cmd = (
+            f"./generate-rnn-midi.sh {config} {bundle_path} {output_dir} {primer_midi}"
+        )
         subprocess.run(cmd, shell=True)
 
 
@@ -261,9 +257,6 @@ def test():
     primer_midi = "/Users/davisdulin/src/synaesthesia/synosc/data/primer.mid"
     # primer_melody = f"{[60]}"
     SynGenModels.midi_prior_generates_midi_melody(primer_midi)
-
-
-
 
 
 if __name__ == "__main__":
@@ -306,13 +299,3 @@ Train and Evaluate Model
         --num_training_steps=20000
 
 """
-
-
-
-
-
-
-
-
-
-
