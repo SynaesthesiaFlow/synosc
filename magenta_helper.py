@@ -1,5 +1,35 @@
 """
-where are our infrasound installations?
+TODO
+    - interface with core magenta tooling instead of outer shell scripts
+
+- do we want to go for some kind of direct mapping between an instrument -> magenta -> LXEngine?
+- which features do we want to expose from magenta?
+        - call & response (melody_rnn, coconet, ...)
+        - compliment/augment in real time
+            - camouflage latency by requiring inertia behind rhythm/harmony?
+        - it would be nice if there was a word-movers-distance equivalent to filling up frequency space with complimentary harmonies
+
+MIR Goals:
+    - Estimate Consonance and Dissonance
+        - https://music.stackexchange.com/questions/4439/is-there-a-way-to-measure-the-consonance-or-dissonance-of-a-chord
+        - http://musicalgorithms.ewu.edu/learnmore/MoreRoughness.html
+        - The term roughness describes an aural sensation and was introduced in the acoustics and psychoacoustics literature by Helmholtz (end of the nineteenth century) to label harsh, raspy, hoarse sounds. Within the Western musical tradition, auditory roughness constitutes one of the perceptual correlates of the multidimensional concept of dissonance.
+        - (a)   If the fluctuation rate is smaller than the critical bandwidth, then a single tone is perceived either with fluctuating loudness (beating) or with roughness.
+          (b) If the fluctuation rate is larger than the critical bandwidth, then a complex tone is perceived, to which one or more pitches can be assigned but which, in general, exhibits no beating or roughness.
+    - beat estimation
+
+
+some noteworthy packages from magenta
+    dopamine-rl, gym: A framework for flexible Reinforcement Learning research
+    librosa: LibROSA is a python package for music and audio analysis
+    mir_eval: Music Information Retrieval system
+    audioread: Decode audio files using whichever backend is available
+    greenlet: lightweight concurrency https://stackoverflow.com/questions/15556718/greenlet-vs-threads
+    bokeh: viz tool
+    resampy: Efficient sample rate conversion in python
+    absl-py: Google's own Python code base,
+    mido: midi util
+
 """
 import subprocess
 import pretty_midi
@@ -10,7 +40,8 @@ from mido.ports import MultiPort
 
 class SynGenModels:
 
-    def midi_prior_generates_midi_melody(self, primer_midi):
+    @staticmethod
+    def midi_prior_generates_midi_melody(primer_midi):
         """
         use melody_rnn with attention to generate a midi file from an input midi
         primer_midi: (path) to midi file
