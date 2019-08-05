@@ -48,20 +48,24 @@ class ExampleServer(OscServer):
             pass
 
     def synthesize(self, unused_addr, args):
-        # Synthesize the resulting MIDI data using sine waves
+        # TODO take the midi file as an argument
+        
         print(f"args: {args}")
-        audio_data = args
-        # midi_data = pretty_midi.PrettyMIDI(midi_fname)
-        # audio_data = midi_data.synthesize()
+        midi_fname = args
+        midi_data = pretty_midi.PrettyMIDI(midi_fname)
+        audio_data = midi_data.synthesize()
         print(f"audio_data: {audio_data}")
         return audio_data
         # sd.play(audio_data, sps)
+    
+    def receive_midi_str(self, unused_addr, args):
+        print(f"args: {args}")
 
     def construct_dispatchers(self):
         self.dispatcher.map("/filter", print)
         self.dispatcher.map("/volume", self.print_volume_handler, "Volume")
         self.dispatcher.map("/logvolume", self.print_compute_handler, "Log volume", math.log)
-        self.dispatcher.map("/midi/0", self.synthesize)
+        self.dispatcher.map("/midi/0", self.receive_midi_str)
         return self
 
 

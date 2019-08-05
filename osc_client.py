@@ -63,7 +63,10 @@ class ExampleClient(OscClient):
         client = self.get_udp_client()
         client.send_message("/volume", 1)
         client.send_message("/filter", random.random())
-        client.send_message("/midi/0", midi_fname)
+        # TODO send midi file instead of file name
+        with open("data/primer.mid", "rb") as f:
+            midi_data_str = f.readlines()
+        client.send_message("/midi/0", [midi_data_str])
 
     def get_udp_client(self):
         """
