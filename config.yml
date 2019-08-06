@@ -1,0 +1,2 @@
+SPS = 44100  # Samples per second
+DEFAULT_OSC_PORT = 5005

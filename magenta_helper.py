@@ -10,7 +10,8 @@ from mido.ports import MultiPort
 
 class SynGenModels:
 
-    def midi_prior_generates_midi_melody(self, primer_midi):
+    @staticmethod
+    def midi_prior_generates_midi_melody(primer_midi, output_dir):
         """
         use melody_rnn with attention to generate a midi file from an input midi
         primer_midi: (path) to midi file
@@ -19,7 +20,6 @@ class SynGenModels:
         """
         config = "attention_rnn"
         bundle_path = "/Users/davisdulin/src/synaesthesia/synosc/data/attention_rnn.mag"
-        output_dir = "/tmp/melody_rnn/generated"
         cmd = f"./generate-rnn-midi.sh {config} {bundle_path} {output_dir} {primer_midi}"
         subprocess.run(cmd, shell=True)
 

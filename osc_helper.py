@@ -15,18 +15,14 @@ Notes
 
 """
 
-DEFAULT_ADDRESS = "127.0.0.1"
-# DEFAULT_PORT = 5005
-DEFAULT_PORT = 8000
 
 
-class OscObject:
+class OscHandler:
     """
-  contains an OSC Client, Server, or both
+  contains an OSC Client, Server, or both(?)
+  I'm imagining several hops of unpeeling dependency injection
   TODO: not functional, needs work
   """
-
-    SPS = 44100  # Samples per second
 
     def __init__(self, addr, port):
         self.addr = addr

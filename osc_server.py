@@ -4,19 +4,18 @@ import sounddevice as sd
 from pythonosc import dispatcher
 from pythonosc import osc_server
 import pretty_midi
-from osc_helper import OscObject
+from osc_helper import OscHandler
 import osc_helper
 
 
-class OscServer(OscObject):
+class OscServer(OscHandler):
     """
-    Class for OSC Servers
     must override: construct_dispatchers()
     https://python-osc.readthedocs.io/en/latest/
     """
 
     def __init__(self, ip, port):
-        OscObject.__init__(self, ip, port)
+        OscHandler.__init__(self, ip, port)
         self.ip = ip
         self.port = port
         self.dispatcher = dispatcher.Dispatcher()
@@ -49,7 +48,6 @@ class ExampleServer(OscServer):
 
     def synthesize(self, unused_addr, args):
         # TODO take the midi file as an argument
-        
         print(f"args: {args}")
         midi_fname = args
         midi_data = pretty_midi.PrettyMIDI(midi_fname)
@@ -61,14 +59,17 @@ class ExampleServer(OscServer):
     def receive_midi_str(self, unused_addr, args):
         print(f"args: {args}")
 
+    # def magenta(self, unused_addr, args):
+
+
+
     def construct_dispatchers(self):
         self.dispatcher.map("/filter", print)
         self.dispatcher.map("/volume", self.print_volume_handler, "Volume")
         self.dispatcher.map("/logvolume", self.print_compute_handler, "Log volume", math.log)
         self.dispatcher.map("/midi/0", self.receive_midi_str)
+        # self.dispatcher.map("/midi/1", self.magenta)
         return self
-
-
 
 
 def build_server():

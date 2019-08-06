@@ -1,4 +1,4 @@
-from osc_helper import OscObject
+from osc_helper import OscHandler
 import pretty_midi
 from pythonosc import udp_client
 from pythonosc import osc_bundle_builder
@@ -6,8 +6,10 @@ from pythonosc import osc_message_builder
 import osc_helper
 import random
 
+from magenta_helper import SynGenModels
 
-class OscClient(OscObject):
+
+class OscClient(OscHandler):
     """
     Class for OSC Clients
     must override: generate_messages()
@@ -15,7 +17,7 @@ class OscClient(OscObject):
     """
 
     def __init__(self, ip, port):
-        OscObject.__init__(self, ip, port)
+        OscHandler.__init__(self, ip, port)
         self.ip = ip
         self.port = port
 
@@ -63,8 +65,10 @@ class ExampleClient(OscClient):
         client = self.get_udp_client()
         client.send_message("/volume", 1)
         client.send_message("/filter", random.random())
-        # TODO send midi file instead of file name
-        with open(midi_fname, "rb") as f:
+        # call magenta to create midi
+        mag_output_dir = "/tmp/melody_rnn/generated"
+        SynGenModels.midi_prior_generates_midi_melody(midi_fname, mag_output_dir)
+        with open(mag_output_dir, "rb") as f:
             midi_data_str = f.readlines()
         client.send_message("/midi/0", [midi_data_str])
 
