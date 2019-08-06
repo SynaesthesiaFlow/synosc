@@ -6,6 +6,8 @@ Open Questions
     - osc schema constraints?
         - is there an implied schema when plugging something (like a midi channel) into ableton?
 
+Essential Coupling:
+    - magenta/interfaces/midi.midi_hub.Metronome
 
 Interface with TouchDesigner
     - schema intentions: simple, extensible
