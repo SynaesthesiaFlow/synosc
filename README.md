@@ -2,6 +2,10 @@
 
 # Open Questions
     - what are our infrasound installations?
+    - MPE has continuous instead of midi?(discrete?)?
+    - backprop continuous MPE for somekinda weird close neural net interactivity appreciation connection (audio/visual)
+    - make smallest pythonic path of code between audio/visual interaction with neural net
+    - x
 
 # Other, less important Questions
     - what are the computational demands of a vanilla RNN vs something like Coconet

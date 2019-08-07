@@ -41,6 +41,7 @@ from mido.ports import MultiPort
 import magenta
 import ast
 from util import get_syn_config
+from contextlib import contextmanager
 from magenta.models.melody_rnn import melody_rnn_model
 from magenta.models.melody_rnn import melody_rnn_sequence_generator
 from magenta.protobuf import generator_pb2
@@ -51,18 +52,79 @@ import tensorflow as tf
 DEFAULT_QUARTERS_PER_MINUTE = 120.0
 
 config = get_syn_config()
+"""
 
 
-class SynMagEther:
+@contextmanager
+def managed_resource(*args, **kwds):
+    # Code to acquire resource, e.g.:
+    resource = acquire_resource(*args, **kwds)
+    try:
+        yield resource
+    finally:
+        # Code to release resource, e.g.:
+        release_resource(resource)
+
+>>> with managed_resource(timeout=3600) as resource:
+...     # Resource is released at the end of this block,
+...     # even if code in the block raises an exception
+"""
+from magenta.interfaces.midi.midi_hub import Metronome
+class SynMagEther(object):
     """
-
+    partial truth: stateless relations between Inbound and Outbound?
     context manager for holding Magenta processes
+    Base class to be used for different context managers
+        - Inbound, corresponds with OSC Server
+        - Outbound, corresponds with OSC Client
+        to correspond with the OSC client/server. really feels like its coming along! n we've got touch designers onboard :slightly_smiling_face:
     two types:
         - inbound
         - outbound
+
     """
-    def f(self):
+
+    metronome = Metronome()
+
+    def __init__(self):
+        
+        self.db1 = DB1()
+        self.db2 = DB2()
+
+    def __enter__(self):
+        self.db1.__enter__()
+        try:
+            self.db2.__enter__()
+        except:
+            self.db1.__exit__(None, None, None) # I am not sure with None
+            raise
+        return self
+    def __exit__(self, type, value, traceback):
+        try:
+            self.db1.__exit__(self, type, value, traceback)
+        finally:
+            self.db2.__exit__(self, type, value, traceback)
+
+
+class SynMagEther:
+
+
+    @contextmanager
+    def manage_magenta_inbound(self, *args, **kwds):
         pass
+
+    @contextmanager
+    def manage_magenta_outbound(self, *args, **kwds):
+        pass
+
+
+
+    def manage_magenta_inbound(self, *args, **kwds):
+
+
+
+    def manage_magenta_inbound(self, *args, **kwds):
+
 
 class SynGenModels:
 
