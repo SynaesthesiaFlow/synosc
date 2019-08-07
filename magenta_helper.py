@@ -1,5 +1,6 @@
 """
 TODO
+    - magenta logging
     - explore/find/brainstorm the basic features that we want, and get it plumbed all the way through
     - interface with core magenta tooling instead of outer shell scripts
     - create primer streaming input layer for magenta for more real-time interaction
@@ -33,51 +34,26 @@ TODO
         midi_interaction.CallAndResponseMidiInteraction()
 - constraints to put on RNN to stay on beat?
     - i'm imagining some cyclical filter with a peak at the beat, and slope characteristic to that specific cycle
+
 """
 import subprocess
 import pretty_midi
 import mido
-
-from mido import sockets
-from mido.ports import MultiPort
-import magenta
-import ast
-from contextlib import contextmanager
-from magenta.models.melody_rnn import melody_rnn_model
-from magenta.models.melody_rnn import melody_rnn_sequence_generator
-from magenta.protobuf import generator_pb2
-from magenta.protobuf import music_pb2
-import tensorflow as tf
-
 import time
 from queue import Queue
 
-
 from magenta.interfaces.midi.midi_hub import Metronome
 from magenta.interfaces.midi import midi_hub
-from util.util import get_syn_config
+from magenta.interfaces.midi.midi_hub import Metronome
 from magenta.common import concurrency
-from util.midi_util import estimate_tempo
+
+from util.util import get_syn_config
+from util.midi_util import estimate_tempo, get_midi_aggr_dir, Instrument
 # from util.midi_util import get_midi_aggr_dir
 
 DEFAULT_QUARTERS_PER_MINUTE = 120.0
-
 config = get_syn_config()
-
-from magenta.interfaces.midi.midi_hub import Metronome
-
 mag_config = get_syn_config()["magenta"]
-
-
-class MockMidiPort(mido.ports.BaseIOPort):
-
-  def __init__(self):
-    super(MockMidiPort, self).__init__()
-    self.message_queue = Queue()
-
-  def send(self, msg):
-    msg.time = time.time()
-    self.message_queue.put(msg)
 
 
 class AbletonMock:
@@ -85,6 +61,22 @@ class AbletonMock:
     mock to help build with dependency/parameter injection
     """
     qpm = 120.0
+
+    def instrument(self):
+        instrument = Instrument()
+        notes = [("C5", 100, 0, 0.5), ("E5", 100, 0, 0.5), ("G5", 100, 0, 0.5)]  # (note_name, velocity, start, end)
+        instrument.create_midi(notes)
+
+
+class MockMidiPort(mido.ports.BaseIOPort):
+
+    def __init__(self):
+        super(MockMidiPort, self).__init__()
+        self.message_queue = Queue()
+
+    def send(self, msg):
+        msg.time = time.time()
+        self.message_queue.put(msg)
 
 
 class SynMagEther(object):
@@ -139,20 +131,33 @@ def test_cm():
     qpm = 120.0
     start_time = time.time()
     with SynMagEther(qpm, start_time, signals=None, channel=None) as sme:
+        """
+        TODO
+            - accrue midi context as sliding window w inertia
+                - historical
+                - recent
+                - latest
+            - stay on beat
+                - filter if tempo validator fails?
+            - continuously compliment what is being played with various musical pipelines 
+                - chords
+                - drums
+                - melody
+        """
         # functions can assume sme exists implicitly as closure
         # thus also giving implicit access to midi_hub, ect.
-        # qpm =
         # TODO create midi events from / in-line-with metronome
         output_dir = "mag_out1"
         primer_midi = "data/primer.mid"
         SynGenModels.midi_prior_generates_midi_melody(primer_midi, output_dir)
-        midi_data = get_midi_aggr_dir(output_dir)
+        glob_mid = "tmp-glob.midi"  # TODO make dynamic
+        midi_data = get_midi_aggr_dir(output_dir, glob_mid)
         qpm = estimate_tempo(midi_data)
         before = sme.midi_hub._metronome.qpm
         sme.midi_hub._metronome.update(qpm=qpm, start_time=sme.start_time)
         after = sme.midi_hub._metronome.qpm
-        print(f"BEFORE metronom qpm: {before}")
-        print(f"AFTER metronom qpm: {after}")
+        print(f"BEFORE metronome qpm: {before}")
+        print(f"AFTER metronome qpm: {after}")
 
 
 class SynGenModels:

@@ -2,12 +2,33 @@ import pretty_midi
 import mido
 from mido import sockets
 from mido.ports import MultiPort
-
+import os
 """
 to be used closely with magenta/music/midi_io.py
 with additional utils
 more pretty_midi examples: https://github.com/craffel/pretty-midi/tree/master/examples
 """
+
+
+def get_abs_fnames_in_dir(dir_name):
+    return [os.path.join(os.path.dirname(os.path.realpath(__file__)), "data", "mids", f) for f in os.listdir(dir_name)]
+
+
+def get_midi_aggr_dir(in_dir, out_f):
+    midi_files = get_abs_fnames_in_dir(in_dir)
+    # print("MF: " + str(midi_files))
+    ml = list()
+    for midif in midi_files:
+        with open(midif, "rb") as f:
+            m = f.read()
+        ml.append(m)
+    # print("ML: " + str(ml))
+    b = "\n".encode().join(ml)
+    print("B: " + str(b))
+    with open(out_f, "wb") as f:
+        f.write(b)
+    return ml
+
 
 def serve_ports():
     out = MultiPort([mido.open_output(name) for name in ["SH-201" "SD-20 Part A"]])
@@ -54,6 +75,26 @@ def qpm_to_bpm(quarter_note_tempo, numerator, denominator):
     :return:
     """
     return pretty_midi.pretty_midi.qpm_to_bpm(quarter_note_tempo, numerator, denominator)
+
+
+class Instrument:
+    def __init__(self, instrument_name="Cello"):
+        self.midi = pretty_midi.PrettyMIDI()
+        instrument_program = pretty_midi.instrument_name_to_program(instrument_name)
+        self.instrument = pretty_midi.Instrument(program=instrument_program)
+
+    def create_midi(self, notes):
+        for note_name, velocity, start, end in notes:
+            # Retrieve the MIDI note number for this note name
+            note_number = pretty_midi.note_name_to_number(note_name)
+            # Create a Note instance, starting at 0s and ending at .5s
+            note = pretty_midi.Note(velocity=velocity, pitch=note_number, start=start, end=end)
+            # Add it to our cello instrument
+            self.instrument.notes.append(note)
+        # Add the cello instrument to the PrettyMIDI object
+        self.midi.instruments.append(self.instrument)
+        # Write out the MIDI data
+        self.midi.write("cello-C-chord.mid")
 
 
 def create_midi():
