@@ -16,7 +16,7 @@ TODO
     - idea:
         - get pipes setup for chords, drums, melody (magenta/pipelines)
         - give option to "fill in" missing sounds with magenta
-
+    - turn file I/O into str handling
 - do we want to go for some kind of direct mapping between an instrument -> magenta -> LXEngine?
 - which features do we want to expose from magenta?
         - call & response (melody_rnn, coconet, ...)
@@ -31,56 +31,126 @@ TODO
 - A MIDI clock to synchronize multiple `magenta_midi` instances. (midi_clock)
 - midi_interaction: A module for implementing interaction between MIDI and SequenceGenerators.
         midi_interaction.CallAndResponseMidiInteraction()
--
+- constraints to put on RNN to stay on beat?
+    - i'm imagining some cyclical filter with a peak at the beat, and slope characteristic to that specific cycle
 """
 import subprocess
 import pretty_midi
 import mido
-from mido import sockets
-from mido.ports import MultiPort
-import magenta
-import ast
-from util import get_syn_config
-from magenta.models.melody_rnn import melody_rnn_model
-from magenta.models.melody_rnn import melody_rnn_sequence_generator
-from magenta.protobuf import generator_pb2
-from magenta.protobuf import music_pb2
-import tensorflow as tf
+import time
+from queue import Queue
 
+from magenta.interfaces.midi.midi_hub import Metronome
+from magenta.interfaces.midi import midi_hub
+from util.util import get_syn_config
+from magenta.common import concurrency
+from util.midi_util import estimate_tempo
+from util.midi_util import get_midi_aggr_dir
 
 DEFAULT_QUARTERS_PER_MINUTE = 120.0
 
-config = get_syn_config()
+mag_config = get_syn_config()["magenta"]
 
 
-class SynMagEther:
+class MockMidiPort(mido.ports.BaseIOPort):
+
+  def __init__(self):
+    super(MockMidiPort, self).__init__()
+    self.message_queue = Queue()
+
+  def send(self, msg):
+    msg.time = time.time()
+    self.message_queue.put(msg)
+
+
+class AbletonMock:
     """
+    mock to help build with dependency/parameter injection
+    """
+    qpm = 120.0
 
+
+class SynMagEther(object):
+    """
     context manager for holding Magenta processes
+    dependency injection is key
     two types:
         - inbound
         - outbound
+    Ableton:
+        - opens MIDI ports
     """
-    def f(self):
-        pass
+
+    def __init__(self, qpm, start_time, signals=None, channel=None):
+        # self.start_metronome()
+        self.port = MockMidiPort()
+        self.midi_hub = midi_hub.MidiHub([self.port], [self.port], midi_hub.TextureType.POLYPHONIC)
+        if self.midi_hub._metronome is not None and self.midi_hub._metronome.is_alive():
+            self.midi_hub._metronome.update(
+                qpm, start_time, signals=signals, channel=channel)
+        else:
+            self.midi_hub._metronome = Metronome(
+                self.midi_hub._outport, qpm, start_time, signals=signals, channel=channel)
+
+    def __enter__(self):
+        self.start_time = time.time()
+        self.midi_hub._metronome.start()
+
+    def __exit__(self, *exc):
+        print(f"*exc: {exc}")
+        self.midi_hub.stop_metronome()
+
+    def start_metronome(self):
+        """
+        - metronome with mocked port, to be synced with Ableton
+        - fine tune outgoing generated music s.t. it aligns with tempo
+
+        TODO
+            - get midi output from magenta as string
+                - estimate the beat
+            - align it for output
+                - compare beat to metronome
+                - warp
+                - after processing, tie it to a future upcoming beat to start the playback
+            - result = param to feed into ableton warp
+            - dynamic metronome without re-initializing: change metronome qpm on-the-fly
+        """
+        self.midi_hub.start_metronome(start_time=self.start_time, qpm=mag_config["default_quarters_per_minute"])
+
+
+def test_cm():
+    qpm = 120.0
+    start_time = time.time()
+    with SynMagEther(qpm, start_time, signals=None, channel=None) as sme:
+        # functions can assume sme exists implicitly as closure
+        # thus also giving implicit access to midi_hub, ect.
+        # qpm =
+        # TODO create midi events from / in-line-with metronome
+        output_dir = "mag_out1"
+        primer_midi = "data/primer.mid"
+        SynGenModels.midi_prior_generates_midi_melody(primer_midi, output_dir)
+        midi_data = get_midi_aggr_dir(output_dir)
+        qpm = estimate_tempo(midi_data)
+        before = sme.midi_hub._metronome.qpm
+        sme.midi_hub._metronome.update(qpm=qpm, start_time=sme.start_time)
+        after = sme.midi_hub._metronome.qpm
+        print(f"BEFORE metronom qpm: {before}")
+        print(f"AFTER metronom qpm: {after}")
+
+
 
 class SynGenModels:
 
     @staticmethod
-    def midi_prior_generates_midi_melody(primer_midi, output_dir):
-        pass
-
-    def get_midi_str(self, primer_midi):
-        # primer_melody = magenta.music.Melody(ast.literal_eval(primer_mid))
-        # primer_sequence = primer_melody.to_sequence(qpm=config['DEFAULT_QUARTERS_PER_MINUTE'])
-        primer_sequence = magenta.music.midi_file_to_sequence_proto(primer_midi)
-        if primer_sequence.tempos and primer_sequence.tempos[0].qpm:
-            qpm = primer_sequence.tempos[0].qpm
-        pass
-
+    def get_midi_str(primer_midi):
+        output_dir = "/tmp/mag_tmp1.midi"
+        SynGenModels.midi_prior_generates_midi_melody(primer_midi, output_dir)
+        with open(output_dir, "r") as f:
+            midi_bytes = f.readlines()
+        return midi_bytes
 
     @staticmethod
-    def midi_prior_generates_midi_melody(primer_midi):
+    def midi_prior_generates_midi_melody(primer_midi, output_dir):
         """
         decrease latency:
             - shorter datastream to melody RNN (e.g. no file io)
@@ -95,90 +165,23 @@ class SynGenModels:
                        -2 = no event, -1 = note-off event, values 0 through 127 = note-on event for that MIDI pitch
         """
         config = "attention_rnn"
-        bundle_path = "/Users/davisdulin/src/synaesthesia/synosc/data/attention_rnn.mag"
+        bundle_path = "data/attention_rnn.mag"
         cmd = f"./generate-rnn-midi.sh {config} {bundle_path} {output_dir} {primer_midi}"
         subprocess.run(cmd, shell=True)
 
 
-class SynMidiUtil:
-    """
-    to be used closely with magenta/music/midi_io.py
-    with additional utils
-    more pretty_midi examples: https://github.com/craffel/pretty-midi/tree/master/examples
-    """
 
-    def serve_ports(self):
-        out = MultiPort([mido.open_output(name) for name in ["SH-201" "SD-20 Part A"]])
-
-        (host, port) = sockets.parse_address(":8080")
-        with sockets.PortServer(host, port) as server:
-            for message in server:
-                print("Received {}".format(message))
-                out.send(message)
-
-    def _print_ports(self, heading, port_names):
-        print(heading)
-        for name in port_names:
-            print("    '{}'".format(name))
-        print()
-
-    def print_ports(self):
-        print()
-        SynMidiUtil._print_ports("Input Ports:", mido.get_input_names())
-        SynMidiUtil._print_ports("Output Ports:", mido.get_output_names())
-
-    def get_midi(self, fname="example.mid"):
-        midi_data = pretty_midi.PrettyMIDI(fname)
-        return midi_data
-
-    def create_midi(self):
-        cello_c_chord = pretty_midi.PrettyMIDI()
-        cello_program = pretty_midi.instrument_name_to_program("Cello")
-        cello = pretty_midi.Instrument(program=cello_program)
-        # Iterate over note names, which will be converted to note number later
-        for note_name in ["C5", "E5", "G5"]:
-            # Retrieve the MIDI note number for this note name
-            note_number = pretty_midi.note_name_to_number(note_name)
-            # Create a Note instance, starting at 0s and ending at .5s
-            note = pretty_midi.Note(velocity=100, pitch=note_number, start=0, end=0.5)
-            # Add it to our cello instrument
-            cello.notes.append(note)
-        # Add the cello instrument to the PrettyMIDI object
-        cello_c_chord.instruments.append(cello)
-        # Write out the MIDI data
-        cello_c_chord.write("cello-C-chord.mid")
-
-    def estimate_tempo(self, midi_data):
-        # Print an empirical estimate of its global tempo
-        return midi_data.estimate_tempo()
-
-    def get_musical_key(self, midi_data):
-        # Compute the relative amount of each semitone across the entire song, a proxy for key
-        total_velocity = sum(sum(midi_data.get_chroma()))
-        return [sum(semitone) / total_velocity for semitone in midi_data.get_chroma()]
-
-    def shift_instrument_notes(self, midi_data, n):
-        # Shift all notes up by n semitones
-        for instrument in midi_data.instruments:
-            # Don't want to shift drum notes
-            if not instrument.is_drum:
-                for note in instrument.notes:
-                    note.pitch += n
-
-    def synthesize_midi(self, midi_data):
-        # Synthesize the resulting MIDI data using sine waves
-        audio_data = midi_data.synthesize()
-        return audio_data
 
 
 def test():
     primer_midi = "/Users/davisdulin/src/synaesthesia/synosc/data/primer.mid"
     # primer_melody = f"{[60]}"
-    SynGenModels.midi_prior_generates_midi_melody(primer_midi)
+    output_dir = "/tmp/mag_tmp2.midi"
+    SynGenModels.midi_prior_generates_midi_melody(primer_midi, output_dir)
 
 
 def main():
-    pass
+    test_cm()
 
 
 if __name__ == "__main__":

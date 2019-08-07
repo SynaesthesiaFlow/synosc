@@ -18,7 +18,8 @@
 # Resources
     - Deep Learning for Audio
         https://forums.fast.ai/t/deep-learning-with-audio-thread/38123?fbclid=IwAR3kdKKsroTnwA2h1xzf4zvOGzdUh1aL1RxTXUCrWtqccGnBx6zSdDcdOYM
-    - 
+    - Notes on Music Information Retrieval (w/ ipynbs)
+        https://musicinformationretrieval.com/index.html
 
 # Reads
     - https://magenta.tensorflow.org/mljam

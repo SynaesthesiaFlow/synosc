@@ -1,2 +1,5 @@
-SPS = 44100  # Samples per second
-DEFAULT_OSC_PORT = 5005
+# PLEASE dependency inject from ableton when possible
+sps: 44100  # Samples per second
+default_osc_port: 5005
+magenta:
+  default_quarters_per_minute: 120.0
