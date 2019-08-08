@@ -14,16 +14,19 @@ Notes
       - If and how the effects of multiple messages interact
 
 """
+import threading
 
-
-
-class OscHandler:
+class OscHandler(threading.Thread):
     """
-  contains an OSC Client, Server, or both(?)
-  I'm imagining several hops of unpeeling dependency injection
-  TODO: not functional, needs work
-  """
+    contains an OSC Client, Server, or both(?)
+    I'm imagining several hops of unpeeling dependency injection
+    TODO: not functional, needs work
+    """
 
     def __init__(self, addr, port):
         self.addr = addr
         self.port = port
+        super(OscHandler, self).__init__()
+
+    def run(self):
+        pass

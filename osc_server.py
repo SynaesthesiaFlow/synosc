@@ -4,9 +4,8 @@ import sounddevice as sd
 from pythonosc import dispatcher
 from pythonosc import osc_server
 import pretty_midi
+import threading
 from osc_helper import OscHandler
-import osc_helper
-
 
 class OscServer(OscHandler):
     """
@@ -24,7 +23,10 @@ class OscServer(OscHandler):
         # override
         pass
 
-    def start_server(self):
+    def run(self):
+        self.run_server()
+
+    def run_server(self):
         """
         TODO: handle params to start different kinds of servers
         """
@@ -33,7 +35,7 @@ class OscServer(OscHandler):
         server.serve_forever()
 
 
-class ExampleServer(OscServer):
+class SynOscServer(OscServer):
     def __init__(self, ip, port):
         OscServer.__init__(self, ip, port)
 
@@ -73,8 +75,8 @@ class ExampleServer(OscServer):
 
 
 def build_server():
-    server = ExampleServer("127.0.0.1", 5005)
-    server.construct_dispatchers().start_server()
+    server = SynOscServer("127.0.0.1", 5005)
+    server.construct_dispatchers().run_server()
 
 
 if __name__ == "__main__":

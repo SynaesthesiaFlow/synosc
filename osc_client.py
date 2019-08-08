@@ -1,11 +1,10 @@
-from osc_helper import OscHandler
 import pretty_midi
 from pythonosc import udp_client
 from pythonosc import osc_bundle_builder
 from pythonosc import osc_message_builder
-import osc_helper
 import random
 
+from osc_helper import OscHandler
 from magenta_helper import SynGenModels
 
 
@@ -55,7 +54,7 @@ class OscClient(OscHandler):
         # You can now send it via a client as described in other examples.
 
 
-class ExampleClient(OscClient):
+class SynOscClient(OscClient):
 
     def __init__(self, ip, port):
         OscClient.__init__(self, ip, port)
@@ -81,7 +80,7 @@ class ExampleClient(OscClient):
 
 
 def build_client():
-    client = ExampleClient("127.0.0.1", 5005)
+    client = SynOscClient("127.0.0.1", 5005)
     client.generate_messages()
 
 

@@ -1,6 +1,6 @@
 """
 TODO
-    - magenta logging
+    - logging patterns from magenta
     - explore/find/brainstorm the basic features that we want, and get it plumbed all the way through
     - interface with core magenta tooling instead of outer shell scripts
     - create primer streaming input layer for magenta for more real-time interaction
@@ -40,6 +40,7 @@ import subprocess
 import pretty_midi
 import mido
 import time
+import threading
 from queue import Queue
 
 from magenta.interfaces.midi.midi_hub import Metronome
@@ -59,6 +60,7 @@ mag_config = get_syn_config()["magenta"]
 class AbletonMock:
     """
     mock to help build with dependency/parameter injection
+    # TODO create midi events from metronome as ideal input mock
     """
     qpm = 120.0
 
@@ -120,6 +122,7 @@ class SynMagEther(object):
             - align it for output
                 - compare beat to metronome
                 - warp
+                    - warp should be minimized by generating in rhythm with recent input
                 - after processing, tie it to a future upcoming beat to start the playback
             - result = param to feed into ableton warp
             - dynamic metronome without re-initializing: change metronome qpm on-the-fly
@@ -127,10 +130,15 @@ class SynMagEther(object):
         self.midi_hub.start_metronome(start_time=self.start_time, qpm=mag_config["default_quarters_per_minute"])
 
 
-def test_cm():
-    qpm = 120.0
-    start_time = time.time()
-    with SynMagEther(qpm, start_time, signals=None, channel=None) as sme:
+class GenerativeMusicScene(threading.Thread):
+    """
+    a thread implementing a scene with generative art
+    """
+
+    def __init__(self):
+        super(GenerativeMusicScene, self).__init__()
+        
+    def run(self):
         """
         TODO
             - accrue midi context as sliding window w inertia
@@ -139,25 +147,32 @@ def test_cm():
                 - latest
             - stay on beat
                 - filter if tempo validator fails?
-            - continuously compliment what is being played with various musical pipelines 
+            - continuously compliment what is being played with various musical pipelines
                 - chords
                 - drums
                 - melody
         """
-        # functions can assume sme exists implicitly as closure
-        # thus also giving implicit access to midi_hub, ect.
-        # TODO create midi events from / in-line-with metronome
-        output_dir = "mag_out1"
-        primer_midi = "data/primer.mid"
-        SynGenModels.midi_prior_generates_midi_melody(primer_midi, output_dir)
-        glob_mid = "tmp-glob.midi"  # TODO make dynamic
-        midi_data = get_midi_aggr_dir(output_dir, glob_mid)
-        qpm = estimate_tempo(midi_data)
-        before = sme.midi_hub._metronome.qpm
-        sme.midi_hub._metronome.update(qpm=qpm, start_time=sme.start_time)
-        after = sme.midi_hub._metronome.qpm
-        print(f"BEFORE metronome qpm: {before}")
-        print(f"AFTER metronome qpm: {after}")
+        qpm = 120.0
+        start_time = time.time()
+        stop_signal = False
+
+        with SynMagEther(qpm, start_time, signals=None, channel=None) as sme:
+            while True:
+                # TODO create midi events from / in-line-with metronome
+                output_dir = "mag_out1"
+                primer_midi = "data/primer.mid"
+                SynGenModels.midi_prior_generates_midi_melody(primer_midi, output_dir)
+                glob_mid = "tmp-glob.midi"  # TODO make dynamic
+                midi_data = get_midi_aggr_dir(output_dir, glob_mid)
+                qpm = estimate_tempo(midi_data)
+                before = sme.midi_hub._metronome.qpm
+                sme.midi_hub._metronome.update(qpm=qpm, start_time=sme.start_time)
+                after = sme.midi_hub._metronome.qpm
+                print(f"BEFORE metronome qpm: {before}")
+                print(f"AFTER metronome qpm: {after}")
+                time.sleep(5)
+                if stop_signal:
+                    break
 
 
 class SynGenModels:
@@ -199,7 +214,9 @@ def test():
 
 
 def main():
-    test_cm()
+    for i in range(3):
+        t = GenerativeMusicScene()
+        t.start()
 
 
 if __name__ == "__main__":
