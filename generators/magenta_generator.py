@@ -1,37 +1,33 @@
-
-import time
-import threading
-
-from magenta.interfaces.midi.midi_hub import Metronome
-
-from utils.util import get_syn_config
-from utils.midi_util import estimate_tempo, get_midi_aggr_dir
-from utils.magenta_util import get_midi_hub_mock
+from utils.wrench import get_syn_config
 from generators.models.melody_rnn import SynMelodyRNN
 
-from contextlib import ContextDecorator
 DEFAULT_QUARTERS_PER_MINUTE = 120.0
 config = get_syn_config()
-mag_config = get_syn_config()["magenta"]
+
+"""
+TODO: magenta_midi integration:
+
+def load_magenta_midi(self, syn_config):
+    "magenta/interfaces/midi/magenta_midi.py"
+    self.magenta_midi = self.load_magenta_midi(syn_config)
+"""
 
 
-class GenerativeMusicScene(threading.Thread):
+class GenerativeMusicScene:
     """
     A digital scene for generating music
     """
 
-    def __init__(self, gen_muse):
-        super(GenerativeMusicScene, self).__init__()
-        self.gen_muse = gen_muse
-        self.stop_signal = False
+    def __init__(self, syn_config):
+        self.syn_config = syn_config
+        self.melody_model = SynMelodyRNN()
         self.start_time = 0
+        self.stop_signal = False
+        self.signals = None
+        self.channel = None
+        self.qpm = self.syn_config['quarters_per_minute']
 
-    def run(self):
-        qpm = 120.0
-        self.start_time = time.time()
-        self.open_scene(self.gen_muse, qpm, self.start_time)
-
-    def open_scene(self, gen_muse, qpm, start_time):
+    def start_scene(self, qpm, start_time):
         """
         define generator interface to use here
         """
@@ -50,54 +46,6 @@ class GenerativeMusicScene(threading.Thread):
         pass
 
 
-class synmagether(ContextDecorator):
-    """
-    context manager for holding Magenta processes
-    """
-
-    def __init__(self, gen_muse, qpm, start_time, signals=None, channel=None):
-        self.gen_muse = gen_muse
-        self.qpm = qpm
-        self.start_time = start_time
-        self.signals = signals
-        self.channel = channel
-        self.midi_hub = None
-        self.initialize_metronome_mock(qpm, start_time, signals=None, channel=None)
-
-    def __enter__(self):
-        self.start_time = time.time()
-        self.midi_hub._metronome.start()
-
-    def __exit__(self, *exc):
-        print(f"*exc: {exc}")
-        self.midi_hub.stop_metronome()
-
-    def get_qpm(self):
-        return self.midi_hub._metronome.qpm
-
-    def initialize_metronome_mock(self, qpm, start_time, signals=None, channel=None):
-        """
-        Synchronized with Ableton for tempo alignment
-        :param qpm:
-        :param start_time:
-        :param signals:
-        :param channel:
-        :return:
-        """
-        self.midi_hub = get_midi_hub_mock()
-        if self.midi_hub._metronome is not None and self.midi_hub._metronome.is_alive():
-            self.midi_hub._metronome.update(
-                qpm, start_time, signals=signals, channel=channel)
-        else:
-            self.midi_hub._metronome = Metronome(
-                self.midi_hub._outport, qpm, start_time, signals=signals, channel=channel)
-
-    def start_metronome(self):
-        self.midi_hub.start_metronome(start_time=self.start_time, qpm=mag_config["default_quarters_per_minute"])
-
-    def update_metronome(self, qpm):
-        self.midi_hub._metronome.update(qpm=qpm, start_time=self.start_time)
-
 def test():
     primer_midi = "/Users/davisdulin/src/synaesthesia/synosc/data/primer.mid"
     # primer_melody = f"{[60]}"
@@ -113,6 +61,12 @@ if __name__ == "__main__":
     main()
 
 """
+generative model hacks:
+1) generate lots of candidate samples for the next available time slot
+2) create validator for selecting from generative model
+    - vectorize the generation of samples with beam search
+confidence interval for tempo estimate?
+
 TODO
     - logging patterns from magenta
     - explore/find/brainstorm the basic features that we want, and get it plumbed all the way through
@@ -126,7 +80,7 @@ TODO
             AI-Jam reference: https://github.com/tensorflow/magenta-demos/tree/master/ai-jam-js
             - define a new Magenta MIDI Interface for real time interaction using streaming
     - comb through models for inspiration
-    - comb through magenta/music to better understand available utils
+    - comb through magenta/music to better understand available util
     - magenta/protobuf/music.proto is probably a good reference for parameters to extract
     - idea:
         - get pipes setup for chords, drums, melody (magenta/pipelines)

@@ -27,6 +27,6 @@ class SynMelodyRNN:
                        -2 = no event, -1 = note-off event, values 0 through 127 = note-on event for that MIDI pitch
         """
         config = "attention_rnn"
-        bundle_path = "data/attention_rnn.mag"
-        cmd = f"./scrips/generate-rnn-midi.sh {config} {bundle_path} {output_dir} {primer_midi}"
+        bundle_path = "/Users/davisdulin/src/synosc/data/attention_rnn.mag"
+        cmd = f"/Users/davisdulin/src/synosc/scripts/generate-rnn-midi.sh {config} {bundle_path} {output_dir} {primer_midi}"
         subprocess.run(cmd, shell=True)

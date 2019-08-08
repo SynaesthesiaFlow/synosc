@@ -22,6 +22,7 @@ class OscServer(OscHandler):
         self.dispatcher.map("/filter", print)
         self.dispatcher.map("/volume", self.print_volume_handler, "Volume")
         self.dispatcher.map("/logvolume", self.print_compute_handler, "Log volume", math.log)
+        return self
 
     def run(self):
         self.run_server()

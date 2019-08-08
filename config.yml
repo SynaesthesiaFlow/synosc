@@ -1,5 +1,26 @@
-# PLEASE dependency inject from ableton when possible
+default_ip: "127.0.0.1"
+default_port: 5005
 sps: 44100  # Samples per second
 default_osc_port: 5005
+quarters_per_minute: 120.0
 magenta:
-  default_quarters_per_minute: 120.0
+  drums:
+    volume: 2.0 # float
+    call_length: 8 # Auto, 2, 4, 8
+    response_length: 32 # Auto, 2, 4, 8, 16, 32
+    drum_instrument: 1 # int[1:8]
+    temperature: 0.5 # float
+    state: null # [ready, listening, playing]
+    stop: False
+    mutate: False
+  melody:
+    volume: 2.0 # float
+    model: "attention"  # [basic, lookback, attention, RL, Polyphonic]
+    call_instrument: "Cello" # Piano, Harp, Cello, Bass, EPiano, Organ, Guitar, Slap
+    call_length: "Auto"  # Auto, 2, 4, 8
+    response_instrument: "Cello"  # Piano, Harp, Cello, Bass, EPiano, Organ, Guitar, Slap
+    response_length: "Auto"  # [Auto, 2, 4, 8]
+    temperature: 0.5  # float
+    state: null  # [ready, listening, playing]
+    stop: False
+    mutate: False

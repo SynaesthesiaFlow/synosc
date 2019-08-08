@@ -1,10 +1,9 @@
+import random
 from pythonosc import udp_client
 from pythonosc import osc_bundle_builder
 from pythonosc import osc_message_builder
-import random
 
 from osc.osc_helper import OscHandler
-from generators.magenta_generator import SynGenModels
 
 
 class OscClient(OscHandler):
@@ -18,9 +17,11 @@ class OscClient(OscHandler):
         OscHandler.__init__(self, ip, port)
         self.ip = ip
         self.port = port
+        self.client = self.get_udp_client()
 
     def generate_messages(self):
-        # override
+        self.client.send_message("/volume", 1)
+        self.client.send_message("/filter", random.random())
         pass
 
     def get_udp_client(self):
