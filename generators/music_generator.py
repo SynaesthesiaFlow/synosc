@@ -1,5 +1,7 @@
 from utils.wrench import get_syn_config
 from generators.models.melody_rnn import SynMelodyRNN
+from osc.synosc_client import SynOscClient
+import os
 
 DEFAULT_QUARTERS_PER_MINUTE = 120.0
 config = get_syn_config()
@@ -26,11 +28,36 @@ class GenerativeMusicScene:
         self.signals = None
         self.channel = None
         self.qpm = self.syn_config['quarters_per_minute']
+        self.synosc_client = SynOscClient(syn_config["default_ip"], syn_config["default_port"])
+        self.tmp_dir = os.path.join(os.path.dirname(__file__), "..", "tmp")
+
+    def generation_alignment(self):
+        """
+        https://github.com/craffel/pretty-midi/blob/master/examples/align_midi.py
+        :return:
+        """
+
+    def play_from_midi_mock(self, midi_bytes):
+        primer_midi = os.path.join(os.path.dirname(__file__), "data", "primer.midi")
+        output_dir = os.path.join(self.tmp_dir, "data")
+        print(f"out dir: {output_dir}")
+        SynMelodyRNN.midi_prior_generates_midi_melody(primer_midi, output_dir)
+        self.synosc_client.send_midi_dir(output_dir)
+
+    def play_from_midi_bytes(self, midi_bytes):
+        primer_midi = os.path.join(self.tmp_dir, "primer.midi")
+        with open(primer_midi, "wb") as f:
+            f.write(midi_bytes)
+        output_dir = os.path.join(self.tmp_dir, "data")
+        print(f"out dir: {output_dir}")
+        SynMelodyRNN.midi_prior_generates_midi_melody(primer_midi, output_dir)
+        self.synosc_client.send_midi_dir(output_dir)
 
     def start_scene(self, qpm, start_time):
         """
         define generator interface to use here
         """
+        # SynMelodyRNN.midi_prior_generates_midi_melody(primer_midi, output_dir)
 
         # output_dir = "mag_out1"
         # primer_midi = "data/primer.mid"

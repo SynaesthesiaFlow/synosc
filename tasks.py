@@ -1,7 +1,7 @@
 from invoke import task
-from generators import magenta_generator
+from generators import music_generator
 
 
 @task
 def test(c):
-    magenta_generator.test()
+    music_generator.test()

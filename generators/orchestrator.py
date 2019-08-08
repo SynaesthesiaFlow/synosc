@@ -9,8 +9,8 @@ Problems/Difficulties:
 """
 
 
-from generators.magenta_generator import GenerativeMusicScene
-from generators.lx_generator import GenerativeLightScene
+from generators.music_generator import GenerativeMusicScene
+from generators.light_generator import GenerativeLightScene
 from utils.wrench import get_syn_config
 
 

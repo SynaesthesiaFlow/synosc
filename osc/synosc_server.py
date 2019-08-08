@@ -5,6 +5,7 @@ from generators.orchestrator import build_ether
 from osc.osc_server import OscServer
 
 logger = logging.getLogger( __name__)
+ether = build_ether()
 
 
 class SynOscServer(OscServer):
@@ -23,20 +24,18 @@ class SynOscServer(OscServer):
         # sd.play(audio_data, sps)
         return audio_data
 
-    def receive_midi(self, unused_addr, args):
+    def receive_midi_bytes(self, unused_addr, args):
         print(f"args: {args}")
-        # midi = args[0]
-
-            # SynMelodyRNN.midi_prior_generates_midi_melody(midi_fname, mag_output_dir)
+        midi_bytes = args
+        ether.muse.play_from_midi_mock(midi_bytes)
 
     def construct_dispatchers(self):
-        self.dispatcher.map("/midi/0", self.receive_midi)
+        self.dispatcher.map("/midi/0", self.receive_midi_bytes)
         # self.dispatcher.map("/midi/1", self.magenta)
         return self
 
 
 def build_server():
-    ether = build_ether()
     server = SynOscServer(ether)
     server = server.construct_dispatchers()
     server.start()

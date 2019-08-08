@@ -5,9 +5,15 @@ from mido.ports import MultiPort
 import os
 import time
 from queue import Queue
+
+from utils.wrench import get_abs_fnames_in_dir
 """
 pretty_midi examples: https://github.com/craffel/pretty-midi/tree/master/examples
 """
+
+
+def truncate_midi_bytes(midi_bytes):
+    pretty_midi.PrettyMIDI(midi_bytes)
 
 
 class MockMidiPort(mido.ports.BaseIOPort):
@@ -41,8 +47,6 @@ def bpm_to_qpm():
     pass
 
 
-def get_abs_fnames_in_dir(directory_name):
-    return [os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", directory_name, f) for f in os.listdir(directory_name)]
 
 
 def get_midi_aggr_dir(in_dir, out_f):
@@ -53,10 +57,9 @@ def get_midi_aggr_dir(in_dir, out_f):
             m = f.read()
         ml.append(m)
     b = "\n".encode().join(ml)
-    print("B: " + str(b))
     with open(out_f, "wb") as f:
         f.write(b)
-    return ml
+    return b
 
 
 def serve_ports():

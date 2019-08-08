@@ -1,25 +1,28 @@
 from osc.osc_client import OscClient
 from generators.models.melody_rnn import SynMelodyRNN
-from utils.midi_util import get_midi_aggr_dir
-import time
-
+from utils.wrench import get_abs_fnames_in_dir
+import os
 
 class SynOscClient(OscClient):
+
+    MAX_PACKET = 9200  # length of bytes http://opensoundcontrol.org/topic/247
 
     def __init__(self, ip, port):
         OscClient.__init__(self, ip, port)
 
     def generate_messages(self):
         midi_fname = "/Users/davisdulin/src/synosc/data/primer.mid"
-        mag_output_dir = "/Users/davisdulin/src/synosc/tmp"
-        # SynMelodyRNN.midi_prior_generates_midi_melody(midi_fname, mag_output_dir)
-        mag_out_f = "/Users/davisdulin/src/synosc/tmp/glob.midi"
-        get_midi_aggr_dir(mag_output_dir, mag_out_f)
-        with open(mag_out_f, "rb") as f:
-            midi_data_str = f.readlines()
-        print("midi_str: " + str(midi_data_str))
-        self.client.send_message("/midi/0", [midi_data_str[0:30]])
+        mag_output_dir = "/Users/davisdulin/src/synosc/tmp/data"
+        SynMelodyRNN.midi_prior_generates_midi_melody(midi_fname, mag_output_dir)
+        out_dir = os.path.join(os.path.dirname(__file__), "..", "tmp", "data")
+        self.send_midi_dir(out_dir)
 
+    def send_midi_dir(self, out_midi_dir):
+        for midi_file in get_abs_fnames_in_dir(out_midi_dir):
+            with open(midi_file, "rb") as f:
+                midi_bytes = f.read()
+                self.client.send_message("/midi/0", [midi_bytes])
+            break
     # def build_bundle(self):
     #     bundle = osc_bundle_builder.OscBundleBuilder(osc_bundle_builder.IMMEDIATELY)
     #     msg = osc_message_builder.OscMessageBuilder(address="/SYNC")
