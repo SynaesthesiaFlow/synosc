@@ -1,6 +1,7 @@
 from invoke import task
-import magenta_helper
+from generators import magenta_generator
+
 
 @task
 def test(c):
-    magenta_helper.test()
+    magenta_generator.test()

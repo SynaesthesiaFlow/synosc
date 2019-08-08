@@ -1,3 +1,5 @@
+magenta
+external_libs
 pretty-midi
 mido
 .idea/
@@ -8,5 +10,4 @@ MidiOSC
 data
 python-midi
 .DS_Store
-magenta
 __pycache__

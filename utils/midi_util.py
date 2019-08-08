@@ -3,11 +3,42 @@ import mido
 from mido import sockets
 from mido.ports import MultiPort
 import os
+import time
+from queue import Queue
 """
-to be used closely with magenta/music/midi_io.py
-with additional utils
-more pretty_midi examples: https://github.com/craffel/pretty-midi/tree/master/examples
+pretty_midi examples: https://github.com/craffel/pretty-midi/tree/master/examples
 """
+
+
+class MockMidiPort(mido.ports.BaseIOPort):
+
+    def __init__(self):
+        super(MockMidiPort, self).__init__()
+        self.message_queue = Queue()
+
+    def send(self, msg):
+        msg.time = time.time()
+        self.message_queue.put(msg)
+
+
+def get_midi_port_mock():
+    return MockMidiPort()
+
+
+def qpm_to_bpm(qpm, numerator=4, denominator=4):
+    """
+    The bottom number of the time signature indicates a certain kind of note
+    and the top note reveals how many of those notes there are in each measure
+     quarter_note_tempo : (float) Quarter note tempo.
+     numerator : (int) Numerator of time signature.
+     denominator : (int) Denominator of time signature.
+     Returns: bpm: (float) Tempo in beats per minute.
+     """
+    return pretty_midi.qpm_to_bpm(qpm, numerator, denominator)
+
+
+def bpm_to_qpm():
+    pass
 
 
 def get_abs_fnames_in_dir(dir_name):
@@ -53,28 +84,6 @@ def print_ports():
 def get_midi(fname="example.mid"):
     midi_data = pretty_midi.PrettyMIDI(fname)
     return midi_data
-
-def qpm_to_bpm(quarter_note_tempo, numerator, denominator):
-    """
-    quarter_note_tempo : float
-
-    Quarter note tempo.
-
-    numerator : int
-
-    Numerator of time signature.
-
-    denominator : int
-
-    Denominator of time signature.
-
-    Returns:
-    bpm : float
-
-    Tempo in beats per minute.
-    :return:
-    """
-    return pretty_midi.pretty_midi.qpm_to_bpm(quarter_note_tempo, numerator, denominator)
 
 
 class Instrument:

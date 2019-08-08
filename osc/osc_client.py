@@ -1,11 +1,10 @@
-import pretty_midi
 from pythonosc import udp_client
 from pythonosc import osc_bundle_builder
 from pythonosc import osc_message_builder
 import random
 
-from osc_helper import OscHandler
-from magenta_helper import SynGenModels
+from osc.osc_helper import OscHandler
+from generators.magenta_generator import SynGenModels
 
 
 class OscClient(OscHandler):

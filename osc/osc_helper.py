@@ -16,12 +16,8 @@ Notes
 """
 import threading
 
+
 class OscHandler(threading.Thread):
-    """
-    contains an OSC Client, Server, or both(?)
-    I'm imagining several hops of unpeeling dependency injection
-    TODO: not functional, needs work
-    """
 
     def __init__(self, addr, port):
         self.addr = addr

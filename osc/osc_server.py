@@ -1,11 +1,8 @@
-import argparse
 import math
-import sounddevice as sd
 from pythonosc import dispatcher
 from pythonosc import osc_server
 import pretty_midi
-import threading
-from osc_helper import OscHandler
+from osc.osc_helper import OscHandler
 
 class OscServer(OscHandler):
     """
@@ -76,7 +73,7 @@ class SynOscServer(OscServer):
 
 def build_server():
     server = SynOscServer("127.0.0.1", 5005)
-    server.construct_dispatchers().run_server()
+    server.construct_dispatchers().start()
 
 
 if __name__ == "__main__":
