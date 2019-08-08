@@ -53,33 +53,8 @@ class OscClient(OscHandler):
         # You can now send it via a client as described in other examples.
 
 
-class SynOscClient(OscClient):
-
-    def __init__(self, ip, port):
-        OscClient.__init__(self, ip, port)
-
-    def generate_messages(self):
-        midi_fname = "data/primer.mid"
-        client = self.get_udp_client()
-        client.send_message("/volume", 1)
-        client.send_message("/filter", random.random())
-        # call magenta to create midi
-        mag_output_dir = "/tmp/melody_rnn/generated"
-        SynGenModels.midi_prior_generates_midi_melody(midi_fname, mag_output_dir)
-        with open(mag_output_dir, "rb") as f:
-            midi_data_str = f.readlines()
-        client.send_message("/midi/0", [midi_data_str])
-
-    def get_udp_client(self):
-        """
-        client allows you to connect and send messages to an OSC server
-        """
-        client = udp_client.SimpleUDPClient(self.ip, self.port)
-        return client
-
-
 def build_client():
-    client = SynOscClient("127.0.0.1", 5005)
+    client = OscClient("127.0.0.1", 5005)
     client.generate_messages()
 
 

@@ -7,19 +7,60 @@ from magenta.interfaces.midi.midi_hub import Metronome
 from utils.util import get_syn_config
 from utils.midi_util import estimate_tempo, get_midi_aggr_dir
 from utils.magenta_util import get_midi_hub_mock
-from generators.models.melody_rnn import SynGenModels
+from generators.models.melody_rnn import SynMelodyRNN
 
+from contextlib import ContextDecorator
 DEFAULT_QUARTERS_PER_MINUTE = 120.0
 config = get_syn_config()
 mag_config = get_syn_config()["magenta"]
 
 
-class SynMagEther(object):
+class GenerativeMusicScene(threading.Thread):
+    """
+    A digital scene for generating music
+    """
+
+    def __init__(self, gen_muse):
+        super(GenerativeMusicScene, self).__init__()
+        self.gen_muse = gen_muse
+        self.stop_signal = False
+        self.start_time = 0
+
+    def run(self):
+        qpm = 120.0
+        self.start_time = time.time()
+        self.open_scene(self.gen_muse, qpm, self.start_time)
+
+    def open_scene(self, gen_muse, qpm, start_time):
+        """
+        define generator interface to use here
+        """
+
+        # output_dir = "mag_out1"
+        # primer_midi = "data/primer.mid"
+        # SynMelodyRNN.midi_prior_generates_midi_melody(primer_midi, output_dir)
+        # next_mid_out = "tmp-glob.midi"
+        # midi_data = get_midi_aggr_dir(output_dir, next_mid_out)
+        # gen_qpm_est = estimate_tempo(midi_data)
+        # before = sme.get_qpm()
+        # sme.update_metronome()
+        # after = sme.get_qpm()
+        # print(f"BEFORE metronome qpm: {before}")
+        # print(f"AFTER metronome qpm: {after}")
+        pass
+
+
+class synmagether(ContextDecorator):
     """
     context manager for holding Magenta processes
     """
 
-    def __init__(self, qpm, start_time, signals=None, channel=None):
+    def __init__(self, gen_muse, qpm, start_time, signals=None, channel=None):
+        self.gen_muse = gen_muse
+        self.qpm = qpm
+        self.start_time = start_time
+        self.signals = signals
+        self.channel = channel
         self.midi_hub = None
         self.initialize_metronome_mock(qpm, start_time, signals=None, channel=None)
 
@@ -30,6 +71,9 @@ class SynMagEther(object):
     def __exit__(self, *exc):
         print(f"*exc: {exc}")
         self.midi_hub.stop_metronome()
+
+    def get_qpm(self):
+        return self.midi_hub._metronome.qpm
 
     def initialize_metronome_mock(self, qpm, start_time, signals=None, channel=None):
         """
@@ -51,56 +95,14 @@ class SynMagEther(object):
     def start_metronome(self):
         self.midi_hub.start_metronome(start_time=self.start_time, qpm=mag_config["default_quarters_per_minute"])
 
-    def update_metronome(self):
-
-
-class GenerativeMusicScene(threading.Thread):
-    """
-    a thread implementing a scene with generative art
-    """
-
-    def __init__(self):
-        super(GenerativeMusicScene, self).__init__()
-        self.stop_signal = False
-        
-    def run(self):
-        qpm = 120.0
-        start_time = time.time()
-        self.open_scene(qpm, start_time)
-
-    def open_scene(self, qpm, start_time):
-        """
-        flow of scene:
-            1)  
-             
-        """
-        with SynMagEther(qpm, start_time, signals=None, channel=None) as sme:
-            while True:
-                """
-                don't write to disk
-                define generator interface to use here
-                """
-                output_dir = "mag_out1"
-                primer_midi = "data/primer.mid"
-                SynGenModels.midi_prior_generates_midi_melody(primer_midi, output_dir)
-                next_mid_out = "tmp-glob.midi"  # TODO make dynamic
-                midi_data = get_midi_aggr_dir(output_dir, glob_mid)
-                qpm = estimate_tempo(midi_data)
-                before = sme.midi_hub._metronome.qpm
-                sme.midi_hub._metronome.update(qpm=qpm, start_time=sme.start_time)
-                after = sme.midi_hub._metronome.qpm
-                print(f"BEFORE metronome qpm: {before}")
-                print(f"AFTER metronome qpm: {after}")
-                time.sleep(5)
-                if self.stop_signal:
-                    break
-
+    def update_metronome(self, qpm):
+        self.midi_hub._metronome.update(qpm=qpm, start_time=self.start_time)
 
 def test():
     primer_midi = "/Users/davisdulin/src/synaesthesia/synosc/data/primer.mid"
     # primer_melody = f"{[60]}"
     output_dir = "/tmp/mag_tmp2.midi"
-    SynGenModels.midi_prior_generates_midi_melody(primer_midi, output_dir)
+    SynMelodyRNN.midi_prior_generates_midi_melody(primer_midi, output_dir)
 
 
 def main():
@@ -171,7 +173,24 @@ TODO
 - Each SequenceExample will contain a sequence of inputs and a sequence of labels that represent a melody
         https://github.com/tensorflow/magenta/blob/master/magenta/pipelines/note_sequence_pipelines.py
 
+Idea for new magenta midi interface protocol
+    think i have an idea to make generative models more real-time for interaction. but i’m making it up, so plz call me on my bullshittin brainstorm:
+    1) part of the reason models are slow is because they are batch: user gives the entire chunk of midi, and a chunk of midi comes out
+    2) if it was instead a stream, it would be more real-time.
+    3) to make it a stream, you could have a small midi unit input to the model, and get a small midi unit output
+    4) but that would be shit because a lot of the context provided by a sequence is essential to compose musical structure
+    5) if instead:
+    - provide single unit of midi input to model, and output result
+    - the next pass on the model provides the next midi unit input, appended to the end of all previous inputs, for sequential context
+    - somehow constrain the model such that it adds on to what it already created in a way that maintains harmony, or something
+    i’m not sure how you would impose the constraint of having the model result in the same output that it previously generated (after new notes have been added). but maybe you don’t have to, and could just have it be another input to the model, like the attention mechanisms from transformers.
+    Not sure, green field, but this would mean the model could both (1) start outputting something right when someone starts to play, and (2) maintain and act on the existing musical context
 
+
+    - MPE has continuous instead of midi?(discrete?)?
+    - backprop continuous MPE for somekinda weird close neural net interactivity appreciation connection (audio/visual)
+    - make smallest pythonic path of code between audio/visual interaction with neural net
+   
 convert to note sequences
         INPUT_DIRECTORY=/magenta/magenta/testdata/mid_only
 

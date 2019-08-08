@@ -1,12 +1,12 @@
 import subprocess
 
 
-class SynGenModels:
+class SynMelodyRNN:
 
     @staticmethod
     def get_midi_str(primer_midi):
         output_dir = "/tmp/mag_tmp1.midi"
-        SynGenModels.midi_prior_generates_midi_melody(primer_midi, output_dir)
+        SynMelodyRNN.midi_prior_generates_midi_melody(primer_midi, output_dir)
         with open(output_dir, "r") as f:
             midi_bytes = f.readlines()
         return midi_bytes
