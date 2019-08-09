@@ -5,9 +5,15 @@ from mido.ports import MultiPort
 import os
 import time
 from queue import Queue
+
+from utils.wrench import get_abs_fnames_in_dir
 """
 pretty_midi examples: https://github.com/craffel/pretty-midi/tree/master/examples
 """
+
+
+def truncate_midi_bytes(midi_bytes):
+    pretty_midi.PrettyMIDI(midi_bytes)
 
 
 class MockMidiPort(mido.ports.BaseIOPort):
@@ -41,24 +47,19 @@ def bpm_to_qpm():
     pass
 
 
-def get_abs_fnames_in_dir(dir_name):
-    return [os.path.join(os.path.dirname(os.path.realpath(__file__)), "data", "mids", f) for f in os.listdir(dir_name)]
 
 
 def get_midi_aggr_dir(in_dir, out_f):
     midi_files = get_abs_fnames_in_dir(in_dir)
-    # print("MF: " + str(midi_files))
     ml = list()
     for midif in midi_files:
         with open(midif, "rb") as f:
             m = f.read()
         ml.append(m)
-    # print("ML: " + str(ml))
     b = "\n".encode().join(ml)
-    print("B: " + str(b))
     with open(out_f, "wb") as f:
         f.write(b)
-    return ml
+    return b
 
 
 def serve_ports():
@@ -70,16 +71,19 @@ def serve_ports():
             print("Received {}".format(message))
             out.send(message)
 
+
 def _print_ports(heading, port_names):
     print(heading)
     for name in port_names:
         print("    '{}'".format(name))
     print()
 
+
 def print_ports():
     print()
     _print_ports("Input Ports:", mido.get_input_names())
     _print_ports("Output Ports:", mido.get_output_names())
+
 
 def get_midi(fname="example.mid"):
     midi_data = pretty_midi.PrettyMIDI(fname)
@@ -123,14 +127,17 @@ def create_midi():
     # Write out the MIDI data
     cello_c_chord.write("cello-C-chord.mid")
 
+
 def estimate_tempo(midi_data):
     # Print an empirical estimate of its global tempo
     return midi_data.estimate_tempo()
+
 
 def get_musical_key(midi_data):
     # Compute the relative amount of each semitone across the entire song, a proxy for key
     total_velocity = sum(sum(midi_data.get_chroma()))
     return [sum(semitone) / total_velocity for semitone in midi_data.get_chroma()]
+
 
 def shift_instrument_notes(midi_data, n):
     # Shift all notes up by n semitones
@@ -139,6 +146,7 @@ def shift_instrument_notes(midi_data, n):
         if not instrument.is_drum:
             for note in instrument.notes:
                 note.pitch += n
+
 
 def synthesize_midi(midi_data):
     # Synthesize the resulting MIDI data using sine waves

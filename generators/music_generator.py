@@ -1,106 +1,83 @@
-
-import time
-import threading
-
-from magenta.interfaces.midi.midi_hub import Metronome
-
-from utils.util import get_syn_config
-from utils.midi_util import estimate_tempo, get_midi_aggr_dir
-from utils.magenta_util import get_midi_hub_mock
-from generators.models.melody_rnn import SynGenModels
+from utils.wrench import get_syn_config
+from generators.models.melody_rnn import SynMelodyRNN
+from osc.synosc_client import SynOscClient
+import os
 
 DEFAULT_QUARTERS_PER_MINUTE = 120.0
 config = get_syn_config()
-mag_config = get_syn_config()["magenta"]
+
+"""
+TODO: magenta_midi integration:
+
+def load_magenta_midi(self, syn_config):
+    "magenta/interfaces/midi/magenta_midi.py"
+    self.magenta_midi = self.load_magenta_midi(syn_config)
+"""
 
 
-class SynMagEther(object):
+class GenerativeMusicScene:
     """
-    context manager for holding Magenta processes
+    A digital scene for generating music
     """
 
-    def __init__(self, qpm, start_time, signals=None, channel=None):
-        self.midi_hub = None
-        self.initialize_metronome_mock(qpm, start_time, signals=None, channel=None)
+    def __init__(self, syn_config):
+        self.syn_config = syn_config
+        self.melody_model = SynMelodyRNN()
+        self.start_time = 0
+        self.stop_signal = False
+        self.signals = None
+        self.channel = None
+        self.qpm = self.syn_config['quarters_per_minute']
+        self.synosc_client = SynOscClient(syn_config["default_ip"], syn_config["default_port"])
+        self.tmp_dir = os.path.join(os.path.dirname(__file__), "..", "tmp")
 
-    def __enter__(self):
-        self.start_time = time.time()
-        self.midi_hub._metronome.start()
-
-    def __exit__(self, *exc):
-        print(f"*exc: {exc}")
-        self.midi_hub.stop_metronome()
-
-    def initialize_metronome_mock(self, qpm, start_time, signals=None, channel=None):
+    def generation_alignment(self):
         """
-        Synchronized with Ableton for tempo alignment
-        :param qpm:
-        :param start_time:
-        :param signals:
-        :param channel:
+        https://github.com/craffel/pretty-midi/blob/master/examples/align_midi.py
         :return:
         """
-        self.midi_hub = get_midi_hub_mock()
-        if self.midi_hub._metronome is not None and self.midi_hub._metronome.is_alive():
-            self.midi_hub._metronome.update(
-                qpm, start_time, signals=signals, channel=channel)
-        else:
-            self.midi_hub._metronome = Metronome(
-                self.midi_hub._outport, qpm, start_time, signals=signals, channel=channel)
 
-    def start_metronome(self):
-        self.midi_hub.start_metronome(start_time=self.start_time, qpm=mag_config["default_quarters_per_minute"])
+    def play_from_midi_mock(self, midi_bytes):
+        primer_midi = os.path.join(os.path.dirname(__file__), "data", "primer.midi")
+        output_dir = os.path.join(self.tmp_dir, "data")
+        print(f"out dir: {output_dir}")
+        SynMelodyRNN.midi_prior_generates_midi_melody(primer_midi, output_dir)
+        self.synosc_client.send_midi_dir(output_dir)
 
-    def update_metronome(self):
+    def play_from_midi_bytes(self, midi_bytes):
+        primer_midi = os.path.join(self.tmp_dir, "primer.midi")
+        with open(primer_midi, "wb") as f:
+            f.write(midi_bytes)
+        output_dir = os.path.join(self.tmp_dir, "data")
+        print(f"out dir: {output_dir}")
+        SynMelodyRNN.midi_prior_generates_midi_melody(primer_midi, output_dir)
+        self.synosc_client.send_midi_dir(output_dir)
 
-
-class GenerativeMusicScene(threading.Thread):
-    """
-    a thread implementing a scene with generative art
-    """
-
-    def __init__(self):
-        super(GenerativeMusicScene, self).__init__()
-        self.stop_signal = False
-        
-    def run(self):
-        qpm = 120.0
-        start_time = time.time()
-        self.open_scene(qpm, start_time)
-
-    def open_scene(self, qpm, start_time):
+    def start_scene(self, qpm, start_time):
         """
-        flow of scene:
-            1)  
-             
+        define generator interface to use here
         """
-        with SynMagEther(qpm, start_time, signals=None, channel=None) as sme:
-            while True:
-                """
-                don't write to disk
-                define generator interface to use here
-                """
-                output_dir = "mag_out1"
-                primer_midi = "data/primer.mid"
-                SynGenModels.midi_prior_generates_midi_melody(primer_midi, output_dir)
-                next_mid_out = "tmp-glob.midi"  # TODO make dynamic
-                midi_data = get_midi_aggr_dir(output_dir, glob_mid)
-                qpm = estimate_tempo(midi_data)
-                before = sme.midi_hub._metronome.qpm
-                sme.midi_hub._metronome.update(qpm=qpm, start_time=sme.start_time)
-                after = sme.midi_hub._metronome.qpm
-                print(f"BEFORE metronome qpm: {before}")
-                print(f"AFTER metronome qpm: {after}")
-                time.sleep(5)
-                if self.stop_signal:
-                    break
+        # SynMelodyRNN.midi_prior_generates_midi_melody(primer_midi, output_dir)
+
+        # output_dir = "mag_out1"
+        # primer_midi = "data/primer.mid"
+        # SynMelodyRNN.midi_prior_generates_midi_melody(primer_midi, output_dir)
+        # next_mid_out = "tmp-glob.midi"
+        # midi_data = get_midi_aggr_dir(output_dir, next_mid_out)
+        # gen_qpm_est = estimate_tempo(midi_data)
+        # before = sme.get_qpm()
+        # sme.update_metronome()
+        # after = sme.get_qpm()
+        # print(f"BEFORE metronome qpm: {before}")
+        # print(f"AFTER metronome qpm: {after}")
+        pass
 
 
 def test():
     primer_midi = "/Users/davisdulin/src/synaesthesia/synosc/data/primer.mid"
     # primer_melody = f"{[60]}"
     output_dir = "/tmp/mag_tmp2.midi"
-    SynGenModels.midi_prior_generates_midi_melody(primer_midi, output_dir)
+    SynMelodyRNN.midi_prior_generates_midi_melody(primer_midi, output_dir)
 
 
 def main():
@@ -111,6 +88,12 @@ if __name__ == "__main__":
     main()
 
 """
+generative model hacks:
+1) generate lots of candidate samples for the next available time slot
+2) create validator for selecting from generative model
+    - vectorize the generation of samples with beam search
+confidence interval for tempo estimate?
+
 TODO
     - logging patterns from magenta
     - explore/find/brainstorm the basic features that we want, and get it plumbed all the way through
@@ -124,7 +107,7 @@ TODO
             AI-Jam reference: https://github.com/tensorflow/magenta-demos/tree/master/ai-jam-js
             - define a new Magenta MIDI Interface for real time interaction using streaming
     - comb through models for inspiration
-    - comb through magenta/music to better understand available utils
+    - comb through magenta/music to better understand available util
     - magenta/protobuf/music.proto is probably a good reference for parameters to extract
     - idea:
         - get pipes setup for chords, drums, melody (magenta/pipelines)
@@ -171,7 +154,24 @@ TODO
 - Each SequenceExample will contain a sequence of inputs and a sequence of labels that represent a melody
         https://github.com/tensorflow/magenta/blob/master/magenta/pipelines/note_sequence_pipelines.py
 
+Idea for new magenta midi interface protocol
+    think i have an idea to make generative models more real-time for interaction. but i’m making it up, so plz call me on my bullshittin brainstorm:
+    1) part of the reason models are slow is because they are batch: user gives the entire chunk of midi, and a chunk of midi comes out
+    2) if it was instead a stream, it would be more real-time.
+    3) to make it a stream, you could have a small midi unit input to the model, and get a small midi unit output
+    4) but that would be shit because a lot of the context provided by a sequence is essential to compose musical structure
+    5) if instead:
+    - provide single unit of midi input to model, and output result
+    - the next pass on the model provides the next midi unit input, appended to the end of all previous inputs, for sequential context
+    - somehow constrain the model such that it adds on to what it already created in a way that maintains harmony, or something
+    i’m not sure how you would impose the constraint of having the model result in the same output that it previously generated (after new notes have been added). but maybe you don’t have to, and could just have it be another input to the model, like the attention mechanisms from transformers.
+    Not sure, green field, but this would mean the model could both (1) start outputting something right when someone starts to play, and (2) maintain and act on the existing musical context
 
+
+    - MPE has continuous instead of midi?(discrete?)?
+    - backprop continuous MPE for somekinda weird close neural net interactivity appreciation connection (audio/visual)
+    - make smallest pythonic path of code between audio/visual interaction with neural net
+   
 convert to note sequences
         INPUT_DIRECTORY=/magenta/magenta/testdata/mid_only
 
