@@ -1,13 +1,16 @@
 """
-Notes for Integrating with Touch Designer
 
-Open Questions
-    - osc schema definitions
-    - osc schema constraints?
-        - is there an implied schema when plugging something (like a midi channel) into ableton?
 
-Essential Coupling:
-    - magenta/interfaces/midi.midi_hub.Metronome
+
+Architecture:
+    OSC Chop Component -> audio out component
+    https://1-10.github.io/zigsim/getting-started.html#install
+    convert magenta-midi constructor into osc schema definitions
+
+
+Intro: https://www.youtube.com/watch?v=wmM1lCWtn6o
+
+
 
 Interface with TouchDesigner
     - schema intentions: simple, extensible
