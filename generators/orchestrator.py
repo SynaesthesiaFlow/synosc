@@ -6,6 +6,9 @@ integrate with metronome
 Problems/Difficulties:
     - threading midi channels
         thought: have different interpreters for each midi channel
+real-time interaction?
+    - sliding window of context: max allowed prior to melody_rnn
+    
 """
 
 
