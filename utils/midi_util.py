@@ -9,6 +9,11 @@ from queue import Queue
 from utils.wrench import get_abs_fnames_in_dir
 """
 pretty_midi examples: https://github.com/craffel/pretty-midi/tree/master/examples
+
+MIDI notes
+    - The important point is that the MIDI language does not define the 
+    sound itself, but only the sequence of instructions to create the 
+    sound in the target synthesizer.
 """
 
 
