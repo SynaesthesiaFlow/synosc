@@ -2,6 +2,12 @@
 
 # Open Questions
     - what are our infrasound installations?
+    
+# TODO
+    - need to integrate the IAC Driver IAC Bus 1-4 in with ableton
+        - use max4live patch and AbletonLiveSet
+             maxpat: https://github.com/tensorflow/magenta-demos/tree/master/ai-jam-ableton#download-max-patches
+             als: https://github.com/tensorflow/magenta-demos/tree/master/ai-jam-ableton#download-live-set
 
 # Other, less important Questions
     - what are the computational demands of a vanilla RNN vs something like Coconet

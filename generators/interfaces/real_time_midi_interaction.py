@@ -1,19 +1,40 @@
 import abc
 import threading
 import time
+from absl import logging
 
 import magenta
 from magenta.protobuf import generator_pb2
 from magenta.protobuf import music_pb2
 import tensorflow as tf
+
 from magenta.interfaces.midi.midi_interaction import MidiInteraction, adjust_sequence_times
 
 
 class RealTimeMidiInteraction(MidiInteraction):
     """
-    ** base code copied from magenta/interfaces/midi/CallAndResponseMidiInteraction **
+    for reference, see: magenta/interfaces/midi/CallAndResponseMidiInteraction
 
-    Implementation of a MidiInteraction for interactive "call and response".
+    Implementation of a MidiInteraction for real-time interaction augmentation
+     to complement what is played
+
+    Starts by Listening quietly, then continuously plays generated sequences ('response')
+    until user stops playing ('end_call_signal'), or placed in Idle state. The steady state
+    continuously takes input and responds to it.
+
+    MIDI Input and Output is through the MidiHub
+
+    TODO Simplest transformations from existing processes:
+        - Add state AUGMENT as a composition of simultaneous, indefinite "Call" and "Response" states
+            - work in the same in/out chunks as CallAndResponse, but just have it be
+              playing in response to the previous measure
+            - Use existing MIDI IO for CallAndResponse.
+                - midi_hub shouldn't change, threads allowing
+        - have the Response play in a different mode: input(violin) -> output(drums, piano)
+
+
+    ------------------------------------------
+
 
     Alternates between receiving input from the MidiHub ("call") and playing
     generated sequences ("response"). During the call stage, the input is captured
@@ -80,10 +101,14 @@ class RealTimeMidiInteraction(MidiInteraction):
     """
 
     class State(object):
-        """Class holding state value representations."""
+        """
+        Class holding state value representations.
+        Same state names as CallAndResponse Interaction, but they are represented differently
+        """
         IDLE = 0
         LISTENING = 1
         RESPONDING = 2
+        AUGMENT = 3  # combines listening and responding into a single real-time response state
 
         _STATE_NAMES = {
             IDLE: 'Idle', LISTENING: 'Listening', RESPONDING: 'Responding'}
@@ -140,22 +165,22 @@ class RealTimeMidiInteraction(MidiInteraction):
         """Logs and sends a control change with the state."""
         if self._state_control_number is not None:
             self._midi_hub.send_control_change(self._state_control_number, state)
-        tf.logging.info('State: %s', self.State.to_string(state))
+        logging.info('State: %s', self.State.to_string(state))
 
     def _end_call_callback(self, unused_captured_seq):
         """Method to use as a callback for setting the end call signal."""
         self._end_call.set()
-        tf.logging.info('End call signal received.')
+        logging.info('End call signal received.')
 
     def _panic_callback(self, unused_captured_seq):
         """Method to use as a callback for setting the panic signal."""
         self._panic.set()
-        tf.logging.info('Panic signal received.')
+        logging.info('Panic signal received.')
 
     def _mutate_callback(self, unused_captured_seq):
         """Method to use as a callback for setting the mutate signal."""
         self._mutate.set()
-        tf.logging.info('Mutate signal received.')
+        logging.info('Mutate signal received.')
 
     @property
     def _min_listen_ticks(self):
@@ -226,14 +251,14 @@ class RealTimeMidiInteraction(MidiInteraction):
         generator_options.args['temperature'].float_value = self._temperature
 
         # Generate response.
-        tf.logging.info(
+        logging.info(
             "Generating sequence using '%s' generator.",
             self._sequence_generator.details.id)
-        tf.logging.debug('Generator Details: %s',
+        logging.debug('Generator Details: %s',
                          self._sequence_generator.details)
-        tf.logging.debug('Bundle Details: %s',
+        logging.debug('Bundle Details: %s',
                          self._sequence_generator.bundle_details)
-        tf.logging.debug('Generator Options: %s', generator_options)
+        logging.debug('Generator Options: %s', generator_options)
         response_sequence = self._sequence_generator.generate(
             adjust_sequence_times(input_sequence, -zero_time), generator_options)
         response_sequence = magenta.music.trim_note_sequence(
@@ -315,7 +340,7 @@ class RealTimeMidiInteraction(MidiInteraction):
                   silent_tick or
                   listen_ticks >= self._max_listen_ticks):
                 if listen_ticks < self._min_listen_ticks:
-                    tf.logging.info(
+                    logging.info(
                         'Input too short (%d vs %d). Skipping.',
                         listen_ticks,
                         self._min_listen_ticks)
@@ -357,7 +382,7 @@ class RealTimeMidiInteraction(MidiInteraction):
                         response_start_time += push_ticks * tick_duration
                         response_sequence = adjust_sequence_times(
                             response_sequence, push_ticks * tick_duration)
-                        tf.logging.warn(
+                        logging.warn(
                             'Response too late. Pushing back %d ticks.', push_ticks)
 
                     # Start response playback. Specify the start_time to avoid stripping
@@ -381,7 +406,7 @@ class RealTimeMidiInteraction(MidiInteraction):
             # Potentially loop or mutate previous response.
             if self._mutate.is_set() and not response_sequence.notes:
                 self._mutate.clear()
-                tf.logging.warn('Ignoring mutate request with nothing to mutate.')
+                logging.warn('Ignoring mutate request with nothing to mutate.')
 
             if (response_sequence.total_time <= tick_time and
                     (self._should_loop or self._mutate.is_set())):

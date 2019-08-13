@@ -337,8 +337,8 @@ def run_default_drums():
         "panic_control_number": 11,
         "mutate_control_number": 12,
         "bundle_files": drum_mag_path,
-        # "playback_offset": -0.035,
-        "playback_channe": 2,
+        "playback_offset": -0.035,
+        "playback_channel": 2,
         "log": "INFO"
     }
 
@@ -373,7 +373,7 @@ def run_default_piano():
             "panic_control_number": 11,
             "mutate_control_number": 12,
             "bundle_files": mag_bundle,
-            # "playback_offset": -0.035,
+            "playback_offset": -0.035,
             "playback_channel": "1&"
     }
 

@@ -1,3 +1,7 @@
+"""
+get moar mags:
+    https://github.com/tensorflow/magenta-demos/tree/master/ai-jam-ableton#download-bundles-pretrained-models
+"""
 import os
 from urllib.request import URLopener
 
