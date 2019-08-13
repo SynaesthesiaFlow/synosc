@@ -1,3 +1,33 @@
+"""
+Goal: change the magenta MIDI interaction from CallAndResponse to RealTimeAugmentation
+
+Approach:
+
+
+- nvidia nv-wavenet has real-time implementation of the wavenet
+    - says: conditioning vectors must be provided externally
+            This sounds very difficult to integrate #slerp
+- There's a Tensorflow implementation of it here: https://github.com/Kyubyong/deepvoice3
+    - this is a "not too bad" implementation of nvidia nv-wavenet
+    - need to train on specific instrument, which is different than voice
+    - (input, output) = (other instrument, guitar)
+- First, get three models trained for each part in a trio (violin, piano, drums)
+    - the difficulty: (input, output) = (guitar, {chords, drums})
+    -
+    - this means that we might need one net to train on the input (melody), and another model to be built on that
+      for augmenting into the different modes of backing track and drums
+
+
+
+
+TODO:
+    - magenta_midi integration
+        def load_magenta_midi(self, syn_config):
+            "magenta/interfaces/midi/magenta_midi.py"
+            self.magenta_midi = self.load_magenta_midi(syn_config)
+"""
+
+
 from utils.wrench import get_syn_config
 from generators.models.melody_rnn import SynMelodyRNN
 from osc.synosc_client import SynOscClient
@@ -5,14 +35,6 @@ import os
 
 DEFAULT_QUARTERS_PER_MINUTE = 120.0
 config = get_syn_config()
-
-"""
-TODO: magenta_midi integration:
-
-def load_magenta_midi(self, syn_config):
-    "magenta/interfaces/midi/magenta_midi.py"
-    self.magenta_midi = self.load_magenta_midi(syn_config)
-"""
 
 
 class GenerativeMusicScene:
@@ -74,7 +96,7 @@ class GenerativeMusicScene:
 
 
 def test():
-    primer_midi = "/Users/davisdulin/src/synaesthesia/synosc/data/primer.mid"
+    primer_midi = f"{os.environ['SYNOSC_PATH']}/data/primer.mid"
     # primer_melody = f"{[60]}"
     output_dir = "/tmp/mag_tmp2.midi"
     SynMelodyRNN.midi_prior_generates_midi_melody(primer_midi, output_dir)

@@ -11,8 +11,8 @@ class SynOscClient(OscClient):
         OscClient.__init__(self, ip, port)
 
     def generate_messages(self):
-        midi_fname = "/Users/davisdulin/src/synosc/data/primer.mid"
-        mag_output_dir = "/Users/davisdulin/src/synosc/tmp/data"
+        midi_fname = f"{os.environ['SYNOSC_PATH']}/data/primer.mid"
+        mag_output_dir = f"{os.environ['SYNOSC_PATH']}/tmp/data"
         SynMelodyRNN.midi_prior_generates_midi_melody(midi_fname, mag_output_dir)
         out_dir = os.path.join(os.path.dirname(__file__), "..", "tmp", "data")
         self.send_midi_dir(out_dir)

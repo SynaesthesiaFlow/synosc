@@ -1,5 +1,5 @@
 import subprocess
-
+import os
 
 class SynMelodyRNN:
 
@@ -27,6 +27,9 @@ class SynMelodyRNN:
                        -2 = no event, -1 = note-off event, values 0 through 127 = note-on event for that MIDI pitch
         """
         config = "attention_rnn"
-        bundle_path = "/Users/davisdulin/src/synosc/data/attention_rnn.mag"
-        cmd = f"/Users/davisdulin/src/synosc/scripts/generate-rnn-midi.sh {config} {bundle_path} {output_dir} {primer_midi}"
+
+        # bundle_path = f"{os.environ['SYNOSC_PATH']}/data/attention_rnn.mag"
+        # cmd = f"{os.environ['SYNOSC_PATH']}/scripts/generate-rnn-midi.sh {config} {bundle_path} {output_dir} {primer_midi}"
+        bundle_path = f"/Users/davisdulin/src/synaesthesia/synosc/data/attention_rnn.mag"
+        cmd = f"/Users/davisdulin/src/synaesthesia/synosc/scripts/generate-rnn-midi.sh {config} {bundle_path} {output_dir} {primer_midi}"
         subprocess.run(cmd, shell=True)
