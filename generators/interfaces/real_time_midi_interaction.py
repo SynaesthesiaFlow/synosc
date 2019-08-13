@@ -8,9 +8,10 @@ from magenta.protobuf import music_pb2
 import tensorflow as tf
 from magenta.interfaces.midi.midi_interaction import MidiInteraction, adjust_sequence_times
 
+
 class RealTimeMidiInteraction(MidiInteraction):
     """
-    ** copied from CallAndResponseMidiInteraction **
+    ** base code copied from magenta/interfaces/midi/CallAndResponseMidiInteraction **
 
     Implementation of a MidiInteraction for interactive "call and response".
 

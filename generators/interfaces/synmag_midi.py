@@ -1,21 +1,10 @@
-# Copyright 2019 The Magenta Authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 """A MIDI interface to the sequence generators.
 
 Captures monophonic input MIDI sequences and plays back responses from the
 sequence generator.
+
+TODO: upgrade to Tensorflow 2.0   https://www.tensorflow.org/beta/guide/effective_tf2
+
 """
 from __future__ import absolute_import
 from __future__ import division
@@ -25,6 +14,9 @@ import functools
 import re
 import threading
 import time
+import os
+from absl import logging
+
 
 import magenta
 from magenta.interfaces.midi import midi_hub
@@ -35,6 +27,7 @@ from magenta.models.performance_rnn import performance_sequence_generator
 from magenta.models.pianoroll_rnn_nade import pianoroll_rnn_nade_sequence_generator
 from magenta.models.polyphony_rnn import polyphony_sequence_generator
 import tensorflow as tf
+
 from generators.interfaces.real_time_midi_interaction import RealTimeMidiInteraction
 
 """
@@ -42,145 +35,8 @@ change log:
 input_ports(magenta_in) -> input_ports(synmag_in)
 """
 
-FLAGS = tf.app.flags.FLAGS
 
-tf.app.flags.DEFINE_bool("list_ports", False, "Only list available MIDI ports.")
-tf.app.flags.DEFINE_string(
-    "input_ports",
-    "magenta_in",
-    "Comma-separated list of names of the input MIDI ports.",
-)
-tf.app.flags.DEFINE_string(
-    "output_ports",
-    "magenta_out",
-    "Comma-separated list of names of the output MIDI ports.",
-)
-tf.app.flags.DEFINE_bool(
-    "passthrough", True, "Whether to pass input messages through to the output port."
-)
-tf.app.flags.DEFINE_integer(
-    "clock_control_number",
-    None,
-    "The control change number to use with value 127 as a signal for a tick of "
-    "the external clock. If None, an internal clock is used that ticks once "
-    "per bar based on the qpm.",
-)
-tf.app.flags.DEFINE_integer(
-    "end_call_control_number",
-    None,
-    "The control change number to use with value 127 as a signal to end the "
-    "call phrase on the next tick.",
-)
-tf.app.flags.DEFINE_integer(
-    "panic_control_number",
-    None,
-    "The control change number to use with value 127 as a panic signal to "
-    "close open notes and clear playback sequence.",
-)
-tf.app.flags.DEFINE_integer(
-    "mutate_control_number",
-    None,
-    "The control change number to use with value 127 as a mutate signal to "
-    "generate a new response using the current response sequence as a seed.",
-)
-tf.app.flags.DEFINE_integer(
-    "min_listen_ticks_control_number",
-    None,
-    "The control change number to use for controlling minimum listen duration. "
-    "The value for the control number will be used in clock ticks. Inputs less "
-    "than this length will be ignored.",
-)
-tf.app.flags.DEFINE_integer(
-    "max_listen_ticks_control_number",
-    None,
-    "The control change number to use for controlling maximum listen duration. "
-    "The value for the control number will be used in clock ticks. After this "
-    "number of ticks, a response will automatically be generated. A 0 value "
-    "signifies infinite duration.",
-)
-
-tf.app.flags.DEFINE_integer(
-    "response_ticks_control_number",
-    None,
-    "The control change number to use for controlling response duration. The "
-    "value for the control number will be used in clock ticks. If not set, the "
-    "response duration will match the call duration.",
-)
-tf.app.flags.DEFINE_integer(
-    "temperature_control_number",
-    None,
-    "The control change number to use for controlling softmax temperature."
-    "The value of control changes with this number will be used to set the "
-    "temperature in a linear range between 0.1 and 2.",
-)
-tf.app.flags.DEFINE_boolean(
-    "allow_overlap", False, "Whether to allow the call to overlap with the response."
-)
-tf.app.flags.DEFINE_boolean(
-    "enable_metronome",
-    True,
-    "Whether to enable the metronome. Ignored if `clock_control_number` is "
-    "provided.",
-)
-tf.app.flags.DEFINE_integer(
-    "metronome_channel",
-    1,
-    "The 0-based MIDI channel to output the metronome on. Ignored if "
-    "`enable_metronome` is False or `clock_control_number` is provided.",
-)
-tf.app.flags.DEFINE_integer(
-    "qpm",
-    120,
-    "The quarters per minute to use for the metronome and generated sequence. "
-    "Overriden by values of control change signals for `tempo_control_number`.",
-)
-tf.app.flags.DEFINE_integer(
-    "tempo_control_number",
-    None,
-    "The control change number to use for controlling tempo. qpm will be set "
-    "to 60 more than the value of the control change.",
-)
-tf.app.flags.DEFINE_integer(
-    "loop_control_number",
-    None,
-    "The control number to use for determining whether to loop the response. "
-    "A value of 127 turns looping on and any other value turns it off.",
-)
-tf.app.flags.DEFINE_string(
-    "bundle_files",
-    None,
-    "A comma-separated list of the location of the bundle files to use.",
-)
-
-tf.app.flags.DEFINE_integer(
-    "generator_select_control_number",
-    None,
-    "The control number to use for selecting between generators when multiple "
-    "bundle files are specified. Required unless only a single bundle file is "
-    "specified.",
-)
-tf.app.flags.DEFINE_integer(
-    "state_control_number",
-    None,
-    "The control number to use for sending the state. A value of 0 represents "
-    "`IDLE`, 1 is `LISTENING`, and 2 is `RESPONDING`.",
-)
-tf.app.flags.DEFINE_float(
-    "playback_offset", 0.0, "Time in seconds to adjust playback time by."
-)
-tf.app.flags.DEFINE_integer("playback_channel", 0, "MIDI channel to send play events.")
-tf.app.flags.DEFINE_boolean(
-    "learn_controls", False, "Whether to allow programming of control flags on startup."
-)
-tf.app.flags.DEFINE_string(
-    "log",
-    "WARN",
-    "The threshold for what messages will be logged. DEBUG, INFO, WARN, ERROR, "
-    "or FATAL.",
-)
-
-flags_dict = {
-    # name: default_value
+default_midi_config = {
     "list_ports": False,
     "input_ports": "synmag_in",
     "output_ports": "magenta_out",
@@ -298,28 +154,28 @@ class CCMapper(object):
             self._update_event.wait()
 
 
-def _validate_flags():
+def _validate_midi_config(midi_config):
     """Returns True if flag values are valid or prints error and returns False."""
-    if flags_dict["list_ports"]:
+    if midi_config["list_ports"]:
         print("Input ports: '%s'" % ("', '".join(midi_hub.get_available_input_ports())))
         print(
             "Ouput ports: '%s'" % ("', '".join(midi_hub.get_available_output_ports()))
         )
         return False
 
-    if flags_dict["bundle_files"] is None:
+    if midi_config["bundle_files"] is None:
         print("--bundle_files must be specified.")
         return False
 
     if (
-        len(flags_dict["bundle_files"].split(",")) > 1
-        and FLAGS.generator_select_control_number is None
+        len(midi_config["bundle_files"].split(",")) > 1
+        and midi_config['generator_select_control_number'] is None
     ):
-        tf.logging.warning(
+        logging.warning(
             "You have specified multiple bundle files (generators), without "
             "setting `--generator_select_control_number`. You will only be able to "
             "use the first generator (%s).",
-            flags_dict["bundle_files"][0],
+            midi_config["bundle_files"][0],
         )
 
     return True
@@ -330,14 +186,14 @@ def _load_generator_from_bundle_file(bundle_file):
     try:
         bundle = magenta.music.sequence_generator_bundle.read_bundle_file(bundle_file)
     except magenta.music.sequence_generator_bundle.GeneratorBundleParseError:
-        print("Failed to parse bundle file: %s" % flags_dict["bundle_file"])
+        print("Failed to parse bundle file: %s" % default_midi_config["bundle_file"])
         return None
 
     generator_id = bundle.generator_details.id
     if generator_id not in _GENERATOR_MAP:
         print(
             "Unrecognized SequenceGenerator ID '%s' in bundle file: %s"
-            % (generator_id, flags_dict["bundle_file"])
+            % (generator_id, default_midi_config["bundle_file"])
         )
         return None
 
@@ -355,11 +211,11 @@ def _print_instructions():
     print("")
     print("Instructions:")
     print("Start playing  when you want to begin the call phrase.")
-    if FLAGS.end_call_control_number is not None:
+    if default_midi_config['end_call_control_number'] is not None:
         print(
             "When you want to end the call phrase, signal control number %d "
             "with value 127, or stop playing and wait one clock tick."
-            % FLAGS.end_call_control_number
+            % default_midi_config['end_call_control_number']
         )
     else:
         print(
@@ -374,93 +230,6 @@ def _print_instructions():
     print("To end the interaction, press CTRL-C.")
 
 
-def main(unused_argv):
-    tf.logging.set_verbosity(FLAGS.log)
-
-    if not _validate_flags():
-        return
-
-    # Load generators.
-    generators = []
-    for bundle_file in FLAGS.bundle_files.split(","):
-        generators.append(_load_generator_from_bundle_file(bundle_file))
-        if generators[-1] is None:
-            return
-
-    # Initialize MidiHub.
-    hub = midi_hub.MidiHub(
-        flags_dict["input_ports"].split(","),
-        flags_dict["output_ports"].split(","),
-        midi_hub.TextureType.POLYPHONIC,
-        passthrough=FLAGS.passthrough,
-        playback_channel=flags_dict["playback_channel"],
-        playback_offset=flags_dict["playback_offset"],
-    )
-
-    control_map = {
-        re.sub("_control_number$", "", f): FLAGS.__getattr__(f) for f in _CONTROL_FLAGS
-    }
-    if flags_dict["learn_controls"]:
-        CCMapper(control_map, hub).update_map()
-
-    if control_map["clock"] is None:
-        # Set the tick duration to be a single bar, assuming a 4/4 time signature.
-        clock_signal = None
-        tick_duration = 4 * (60.0 / flags_dict["qpm"])
-    else:
-        clock_signal = midi_hub.MidiSignal(control=control_map["clock"], value=127)
-        tick_duration = None
-
-    def _signal_from_control_map(name):
-        if control_map[name] is None:
-            return None
-        return midi_hub.MidiSignal(control=control_map[name], value=127)
-
-    end_call_signal = _signal_from_control_map("end_call")
-    panic_signal = _signal_from_control_map("panic")
-    mutate_signal = _signal_from_control_map("mutate")
-
-    metronome_channel = (
-        flags_dict["metronome_channel"] if flags_dict["enable_metronome"] else None
-    )
-    if flags_dict["real_time_midi"]:
-        interaction = get_real_time_midi_interaction(
-            hub,
-            generators,
-            clock_signal,
-            tick_duration,
-            end_call_signal,
-            panic_signal,
-            mutate_signal,
-            metronome_channel,
-            control_map,
-        )
-    else:
-        interaction = get_call_and_response_midi_interaction(
-            hub,
-            generators,
-            clock_signal,
-            tick_duration,
-            end_call_signal,
-            panic_signal,
-            mutate_signal,
-            metronome_channel,
-            control_map,
-        )
-
-    _print_instructions()
-
-
-    interaction.start()
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        interaction.stop()
-
-    print("Interaction stopped.")
-
-
 def get_real_time_midi_interaction(
     hub,
     generators,
@@ -472,17 +241,17 @@ def get_real_time_midi_interaction(
     metronome_channel,
     control_map,
 ):
-    return midi_interaction.RealTimeMidiInteraction(
+    return RealTimeMidiInteraction(
         hub,
         generators,
-        flags_dict["qpm"],
-        FLAGS.generator_select_control_number,
+        default_midi_config["qpm"],
+        default_midi_config['generator_select_control_number'],
         clock_signal=clock_signal,
         tick_duration=tick_duration,
         end_call_signal=end_call_signal,
         panic_signal=panic_signal,
         mutate_signal=mutate_signal,
-        allow_overlap=flags_dict["allow_overlap"],
+        allow_overlap=default_midi_config["allow_overlap"],
         metronome_channel=metronome_channel,
         min_listen_ticks_control_number=control_map["min_listen_ticks"],
         max_listen_ticks_control_number=control_map["max_listen_ticks"],
@@ -508,14 +277,14 @@ def get_call_and_response_midi_interaction(
     return midi_interaction.CallAndResponseMidiInteraction(
         hub,
         generators,
-        flags_dict["qpm"],
-        FLAGS.generator_select_control_number,
+        default_midi_config["qpm"],
+        default_midi_config['generator_select_control_number'],
         clock_signal=clock_signal,
         tick_duration=tick_duration,
         end_call_signal=end_call_signal,
         panic_signal=panic_signal,
         mutate_signal=mutate_signal,
-        allow_overlap=flags_dict["allow_overlap"],
+        allow_overlap=default_midi_config["allow_overlap"],
         metronome_channel=metronome_channel,
         min_listen_ticks_control_number=control_map["min_listen_ticks"],
         max_listen_ticks_control_number=control_map["max_listen_ticks"],
@@ -526,8 +295,166 @@ def get_call_and_response_midi_interaction(
         state_control_number=control_map["state"],
     )
 
-    _print_instructions()
 
+def get_piano_mag_paths():
+    """
+    candidate piano mags: ["./basic_rnn.mag", "./lookback_rnn.mag", "./attention_rnn.mag","./rl_rnn.mag", "./polyphony_rnn.mag", "./pianoroll_rnn_nade.mag"]
+    :return: path to piano mags
+    """
+
+    return os.path.join(os.environ['SYNOSC_PATH'], "data", "mags", "attention_rnn.mag")
+
+
+def get_drum_mag_path():
+    """
+    :return: path to drum mag
+    """
+    return os.path.join(os.environ['SYNOSC_PATH'], "data", "mags", "drum_kit_rnn.mag")
+
+
+def run_default_drums():
+    """
+    replaces the RUN_DEMO.sh script from ai-ableton-jam
+    """
+    drum_mag_path = get_drum_mag_path()
+    default_drums_default_midi_config = {
+        "input_ports": "IAC Driver IAC Bus 3",
+        "output_ports": "IAC Driver IAC Bus 4",
+        "passthrough": False,
+        "qpm": 120,
+        "allow_overlap": True,
+        "enable_metronome": False,
+        "clock_control_number": 1,
+        "end_call_control_number": 2,
+        "min_listen_ticks_control_number": 3,
+        "max_listen_ticks_control_number": 4,
+        "response_ticks_control_number": 5,
+        "temperature_control_number": 6,
+        "tempo_control_number": 7,
+        "generator_select_control_number": 8,
+        "state_control_number": 9,
+        "loop_control_number": 10,
+        "panic_control_number": 11,
+        "mutate_control_number": 12,
+        "bundle_files": drum_mag_path,
+        # "playback_offset": -0.035,
+        "playback_channe": 2,
+        "log": "INFO"
+    }
+
+    drums_config = default_midi_config.copy()
+    drums_config.update(default_drums_default_midi_config)
+    runner(drums_config)
+
+
+def run_default_piano():
+    """
+    replaces the RUN_DEMO.sh script from ai-ableton-jam
+    """
+    mag_bundle = get_piano_mag_paths()
+    default_piano_default_midi_config = {
+            "input_ports": "IAC Driver IAC Bus 1",
+            "output_ports": "IAC Driver IAC Bus 2",
+            "passthrough": False,
+            "qpm": 120,
+            "allow_overlap": True,
+            "enable_metronome": False,
+            "log": "DEBUG",
+            "clock_control_number": 1,
+            "end_call_control_number": 2,
+            "min_listen_ticks_control_number": 3,
+            "max_listen_ticks_control_number": 4,
+            "response_ticks_control_number": 5,
+            "temperature_control_number": 6,
+            "tempo_control_number": 7,
+            "generator_select_control_number": 8,
+            "state_control_number": 9,
+            "loop_control_number": 10,
+            "panic_control_number": 11,
+            "mutate_control_number": 12,
+            "bundle_files": mag_bundle,
+            # "playback_offset": -0.035,
+            "playback_channel": "1&"
+    }
+
+    piano_config = default_midi_config.copy()
+    piano_config.update(default_piano_default_midi_config)
+    runner(piano_config)
+
+
+def runner(midi_config):
+    logging.set_verbosity(midi_config['log'])
+
+    if not _validate_midi_config(midi_config):
+        return
+
+    # Load generators.
+    generators = []
+    for bundle_file in midi_config['bundle_files'].split(","):
+        generators.append(_load_generator_from_bundle_file(bundle_file))
+        if generators[-1] is None:
+            return
+
+    # Initialize MidiHub.
+    hub = midi_hub.MidiHub(
+        midi_config["input_ports"].split(","),
+        midi_config["output_ports"].split(","),
+        midi_hub.TextureType.POLYPHONIC,
+        passthrough=midi_config['passthrough'],
+        playback_channel=midi_config["playback_channel"],
+        playback_offset=midi_config["playback_offset"],
+    )
+
+    control_map = {
+        re.sub("_control_number$", "", f): midi_config[f] for f in _CONTROL_FLAGS
+    }
+    if midi_config["learn_controls"]:
+        CCMapper(control_map, hub).update_map()
+
+    if control_map["clock"] is None:
+        # Set the tick duration to be a single bar, assuming a 4/4 time signature.
+        clock_signal = None
+        tick_duration = 4 * (60.0 / midi_config["qpm"])
+    else:
+        clock_signal = midi_hub.MidiSignal(control=control_map["clock"], value=127)
+        tick_duration = None
+
+    def _signal_from_control_map(name):
+        if control_map[name] is None:
+            return None
+        return midi_hub.MidiSignal(control=control_map[name], value=127)
+
+    end_call_signal = _signal_from_control_map("end_call")
+    panic_signal = _signal_from_control_map("panic")
+    mutate_signal = _signal_from_control_map("mutate")
+    metronome_channel = (
+        midi_config["metronome_channel"] if midi_config["enable_metronome"] else None
+    )
+    if midi_config["real_time_midi"]:
+        interaction = get_real_time_midi_interaction(
+            hub,
+            generators,
+            clock_signal,
+            tick_duration,
+            end_call_signal,
+            panic_signal,
+            mutate_signal,
+            metronome_channel,
+            control_map,
+        )
+    else:
+        interaction = get_call_and_response_midi_interaction(
+            hub,
+            generators,
+            clock_signal,
+            tick_duration,
+            end_call_signal,
+            panic_signal,
+            mutate_signal,
+            metronome_channel,
+            control_map,
+        )
+    _print_instructions()
     interaction.start()
     try:
         while True:
@@ -543,10 +470,23 @@ def real_time_midi():
 
 
 def console_entry_point():
-    tf.app.run(main)
+    """
+    Thinkin outloud and th
+        - failing because flag params are being passed to calling function?
+
+    NEXT: how to interface with the MIDI runner?
+            - I think i need to look into the max4live patch and the ableton set
+
+    :return:
+    """
+    thread1 = threading.Thread(target=run_default_drums)
+    thread1.start()
+    thread2 = threading.Thread(target=run_default_piano)
+    thread2.start()
 
 
 if __name__ == "__main__":
-    # execute magenta_midi when ran as main
-    # refer: RUN_DEMO ai-ableton-jam
+    # execute as TF app when ran as main
+    # have entry point for non-TF app (or TF app that is just started elsewhere?
+    # i'm not really sure what
     console_entry_point()
