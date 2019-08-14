@@ -253,11 +253,11 @@ class RealTimeMidiInteraction(MidiInteraction):
             output: MIDIPlayer (player): Plays the notes in aNoteSequence via the MIDI output port
 
         Approaches:
-
             - need to be able to mock inputs/outputs to test my changes
-            - hook up virtual MIDI bus to ableton?
-                https://help.ableton.com/hc/en-us/articles/209774225-How-to-setup-a-virtual-MIDI-bus
-            - now is probably a good time to link this with a maxpat, als
+                - sounddevice? hi-jack the midi ports and play em back with sounddevice, avoiding needing ableton or similar integration
+                - but maybe there's an easy software for working with the IAC Bus Drivers whatever?
+                - hook up virtual MIDI bus to ableton?
+                    https://help.ableton.com/hc/en-us/articles/209774225-How-to-setup-a-virtual-MIDI-bus
         """
         start_time = time.time()
         self._captor = self._midi_hub.start_capture(self._qpm, start_time)
