@@ -26,11 +26,11 @@ class RealTimeMidiInteraction(MidiInteraction):
 
     TODO Simplest transformations from existing processes:
         - Add state AUGMENT as a composition of simultaneous, indefinite "Call" and "Response" states
-            - work in the same in/out chunks as CallAndResponse, but just have it be
-              playing in response to the previous measure
+            - work in the same in/out chunks as CallAndResponse, but just have it be playing in response to the previous measure
             - Use existing MIDI IO for CallAndResponse.
                 - midi_hub shouldn't change, threads allowing
         - have the Response play in a different mode: input(violin) -> output(drums, piano)
+        - make in/out chunks smaller, while adding other forms of context into augmenter (latest, recent, historical)
 
 
     ------------------------------------------
@@ -111,7 +111,7 @@ class RealTimeMidiInteraction(MidiInteraction):
         AUGMENT = 3  # combines listening and responding into a single real-time response state
 
         _STATE_NAMES = {
-            IDLE: 'Idle', LISTENING: 'Listening', RESPONDING: 'Responding'}
+            IDLE: 'Idle', LISTENING: 'Listening', RESPONDING: 'Responding', AUGMENT: 'Augment'}
 
         @classmethod
         def to_string(cls, state):
@@ -203,27 +203,7 @@ class RealTimeMidiInteraction(MidiInteraction):
 
     def _generate(self, input_sequence, zero_time, response_start_time,
                   response_end_time):
-        """
-        Different from what is in place because:
-            - TODO NOW this needs to handle multimodal output
-                - give it a melody, get out a backing track 
-                
-            - TODO NEXT the place calling this needs to change to "constantly output" insteadd of pausing as in "call and response"
-            - 
-            1) States
-                call-and-response states
-                    - call
-                    -response
-                real-time states
-                    - augment
-                    - initial window (silent. 8 quater notes initial Call)
-                    - paused
-            - the sequence needs to be a stream
-            - but the stream is still composed of sequence chunks
-            -
-            - change by having the generator constantly be playing instead
-
-        Generates a response sequence with the currently-selected generator.
+        """Generates a response sequence with the currently-selected generator.
 
         Args:
           input_sequence: The NoteSequence to use as a generation seed.
@@ -266,7 +246,19 @@ class RealTimeMidiInteraction(MidiInteraction):
         return adjust_sequence_times(response_sequence, zero_time)
 
     def run(self):
-        """The main loop for a real-time call and response interaction."""
+        """The main loop for a real-time call and response interaction.
+
+        Breakdown:
+            input: MidiCaptor: Base class thread captures MIDI into a NoteSequence proto. (PolyphonicMidiCaptor, MonophonicMidiCaptor)
+            output: MIDIPlayer (player): Plays the notes in aNoteSequence via the MIDI output port
+
+        Approaches:
+
+            - need to be able to mock inputs/outputs to test my changes
+            - hook up virtual MIDI bus to ableton?
+                https://help.ableton.com/hc/en-us/articles/209774225-How-to-setup-a-virtual-MIDI-bus
+            - now is probably a good time to link this with a maxpat, als
+        """
         start_time = time.time()
         self._captor = self._midi_hub.start_capture(self._qpm, start_time)
 
