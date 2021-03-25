@@ -1,6 +1,6 @@
 pandas==0.25.0
 sounddevice==0.3.13
-PyYAML==5.1.2
+PyYAML==5.4
 pretty-midi==0.2.8
 black==19.3b0
 ipython==7.7.0
