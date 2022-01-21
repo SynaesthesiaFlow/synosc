@@ -3,7 +3,7 @@ sounddevice==0.3.13
 PyYAML==5.1.2
 pretty-midi==0.2.8
 black==19.3b0
-ipython==7.7.0
+ipython==7.16.3
 python-osc==1.7.2
 magenta==1.1.2
 
